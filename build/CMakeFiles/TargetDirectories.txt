@@ -1,0 +1,3 @@
+/home/pc/Projects/CXX/logic_simulator/build/CMakeFiles/app.dir
+/home/pc/Projects/CXX/logic_simulator/build/CMakeFiles/edit_cache.dir
+/home/pc/Projects/CXX/logic_simulator/build/CMakeFiles/rebuild_cache.dir

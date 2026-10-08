@@ -1,0 +1,19 @@
+{
+  "packages": [
+{
+  "SPDXID" : "SPDXRef-resource-0",
+  "checksums" : 
+  [
+    {
+      "algorithm" : "SHA512",
+      "checksumValue" : "ba20ecefd3bf01c44e0b321bdff55b1f39067d416e9c1afb0b3661289ce26b455ca8736baf4782c19c8f737c0763fa8eb3cf235527cc2f1dbf5b924a767a8ed7"
+    }
+  ],
+  "copyrightText" : "NOASSERTION",
+  "downloadLocation" : "git+https://github.com/Neargye/magic_enum@v0.9.8",
+  "licenseConcluded" : "NOASSERTION",
+  "licenseDeclared" : "NOASSERTION",
+  "name" : "Neargye/magic_enum"
+}
+  ]
+}

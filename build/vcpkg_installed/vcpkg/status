@@ -1,0 +1,208 @@
+Package: vcpkg-cmake-config
+Version: 2026-07-21
+Architecture: x64-linux
+Multi-Arch: same
+Abi: f67345200feeeea94ae7d4e18283a5a30bb56e91d557352e695ed5e42819651a
+Status: install ok installed
+
+Package: vcpkg-cmake
+Version: 2025-08-07
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 4d2c5e5f35be919c5a4701890121cc607ba2e18d943355c0383e58f6b5c9f029
+Status: install ok installed
+
+Package: fmt
+Version: 12.2.0
+Port-Version: 1
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: c47bef2b129b81a02b8420256c70854c92bbe6e9606fe2c37eecbb9034ba2b2e
+Description: {fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams.
+Status: install ok installed
+
+Package: magic-enum
+Version: 0.9.8
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: ae8bef4088b15af262453a6f2b8d2f227612272ccc8d3834720dbcd914af1347
+Description: Header-only C++17 library provides static reflection for enums, work with any enum type without any macro or boilerplate code.
+Status: install ok installed
+
+Package: zstd
+Version: 1.5.7
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 75b9aae2efc8c60f72e858a5bfdad3be2c4407b805fba6ad7257e91b5eb9cdb8
+Description: Zstandard - Fast real-time compression algorithm
+Status: install ok installed
+
+Package: vcpkg-cmake-get-vars
+Version: 2025-05-29
+Depends: vcpkg-cmake
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 2e411dcc543398f9f1947b85ba5f6c85e4bcbaa6b4a64ecb69b513fba7cb561e
+Status: install ok installed
+
+Package: vcpkg-tool-meson
+Version: 1.9.0
+Port-Version: 10
+Depends: vcpkg-cmake-get-vars
+Architecture: x64-linux
+Multi-Arch: same
+Abi: fcf7dac90fbe520dfbcf7e04095d7500ec5d10e6918417c9d3a9f377af9e015c
+Description: Meson build system
+Status: install ok installed
+
+Package: vcpkg-get-python-packages
+Version: 2025-04-05
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 9b335e0bb3826da4037222444b3f53a089ef9ba8dc34e42332463886eeeeb140
+Status: install ok installed
+
+Package: lz4
+Version: 1.10.0
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 893dbb286785a8e13fa5f0f13d1e8826ffa9fe5364c9c5408f592580d5735afd
+Description: Lossless compression algorithm, providing compression speed at 400 MB/s per core.
+Status: install ok installed
+
+Package: vcpkg-make
+Version: 2026-07-09
+Depends: vcpkg-cmake-get-vars
+Architecture: x64-linux
+Multi-Arch: same
+Abi: bcc9cddfa45f03a58d363f9cbb1230ad1222b0279832b47ff8d7c4a5fa5ad053
+Status: install ok installed
+
+Package: libxcrypt
+Version: 4.5.2
+Depends: vcpkg-make
+Architecture: x64-linux
+Multi-Arch: same
+Abi: d862822b1ffe1c4253c956abd889d298f842756c478522a050bbb69e4e0ba090
+Description: libxcrypt is a modern library for one-way hashing of passwords. On Linux-based systems, by default libxcrypt will be binary backward compatible with the libcrypt.so.1 shipped as part of the GNU C Library.
+Status: install ok installed
+
+Package: libmount
+Version: 2.41.3
+Port-Version: 1
+Depends: vcpkg-make
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 6cf0355d59d556820df45fd66bd13a2d992bf1c6875838007b0b0261ad107889
+Description: Block device identification library from util-linux
+Status: install ok installed
+
+Package: liblzma
+Version: 5.8.4
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 1ffd23cb773c80e08799915835f792a3dd4b5f9a6bc4732e4b3bb959f07f7348
+Description: Compression library with an API similar to that of zlib.
+Status: install ok installed
+
+Package: libcap
+Version: 2.78
+Depends: vcpkg-cmake-get-vars, vcpkg-make
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 684d083e7825d6f09865cc6de63ed42a3ec1beb4b3d8300efec1bb13c15ca860
+Description: A library for getting and setting POSIX.1e (formerly POSIX 6) draft 15 capabilities.
+Status: install ok installed
+
+Package: gperf
+Version: 3.3
+Depends: vcpkg-make
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 4dc83e62eced9cf58dd4ea4140d27964d5152258f5a302fbdfca3d983293a1cf
+Description: GNU perfect hash function generator
+Status: install ok installed
+
+Package: libsystemd
+Version: 260.2
+Port-Version: 1
+Depends: gperf, libcap, liblzma, libmount, libxcrypt, lz4, vcpkg-get-python-packages, vcpkg-tool-meson, zstd
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 344d318594c250a97ad00b5b3976e0d37d1f27ace00b93278f9157f1ce054bfb
+Description: System and Service Manager
+Status: install ok installed
+
+Package: expat
+Version: 2.8.5
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 16338da78ebc873c11aa7f743569fe9531dd4ed5bfda014e941e1801d316bbc4
+Description: XML parser library written in C
+Status: install ok installed
+
+Package: dbus
+Version: 1.16.2
+Port-Version: 5
+Depends: expat, vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 209426a58e1552860c1cdb6f438137a94d07037f691f944e441ec1c27f3621c1
+Description: D-Bus specification and reference implementation, including libdbus and dbus-daemon
+Default-Features: systemd
+Status: install ok installed
+
+Package: dbus
+Feature: systemd
+Depends: libsystemd
+Architecture: x64-linux
+Multi-Arch: same
+Description: Build with systemd at_console support
+Status: install ok installed
+
+Package: sdl2
+Version: 2.32.10
+Port-Version: 1
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: c20f1fe1c35b17120821a111730ca75eb61b20e202e5ba0d78cb5ff27b424453
+Description: Simple DirectMedia Layer is a cross-platform development library designed to provide low level access to audio, keyboard, mouse, joystick, and graphics hardware via OpenGL and Direct3D.
+Default-Features: dbus, ibus, wayland, x11
+Status: install ok installed
+
+Package: sdl2
+Feature: dbus
+Depends: dbus
+Architecture: x64-linux
+Multi-Arch: same
+Description: Build with D-Bus support
+Status: install ok installed
+
+Package: sdl2
+Feature: ibus
+Architecture: x64-linux
+Multi-Arch: same
+Description: Build with ibus IME support
+Status: install ok installed
+
+Package: sdl2
+Feature: wayland
+Architecture: x64-linux
+Multi-Arch: same
+Description: Build with Wayland support
+Status: install ok installed
+
+Package: sdl2
+Feature: x11
+Architecture: x64-linux
+Multi-Arch: same
+Description: Build with X11 support
+Status: install ok installed
+
