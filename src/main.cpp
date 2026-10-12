@@ -115,14 +115,24 @@ struct Circuit {
         static_assert(Components::component_exists<component>(), "\n\ngetComponent(): Invalid component\n\n");
         switch (component) {
         case Components::LogicGates::And:
-            for (auto &andGate : AndGates) return (andGate.gate_id.id == id) ? &andGate : nullptr;
+            for (auto &andGate : AndGates)
+                if (andGate.gate_id.id == id) return &andGate;
+            break;
         case Components::LogicGates::Or:
-            for (auto &orGate : OrGates) return (orGate.gate_id.id == id) ? &orGate : nullptr;
+            for (auto &orGate : OrGates)
+                if (orGate.gate_id.id == id) return &orGate;
+            break;
         case Components::LogicGates::Not:
-            for (auto &notGate : NotGates) return (notGate.gate_id.id == id) ? &notGate : nullptr;
+            for (auto &notGate : NotGates)
+                if (notGate.gate_id.id == id) return &notGate;
+            break;
         case Components::other::OnInput:
-            for (auto &onInput : OnInputs) return (onInput.id == id) ? &onInput : nullptr;
+            for (auto &onInput : OnInputs)
+                if (onInput.id == id) return &onInput;
+            break;
         }
+
+        return nullptr;
     }
 
   public:
@@ -157,8 +167,8 @@ struct Circuit {
                  std::uint8_t dest_entry) {
         static_assert(component_exists(dest_component), "Circuit::Connect(): invalid dest_component");
         static_assert(component_exists(src_component), "Circuit::Connect(): invalid src_component");
-        auto *dest = getComponent<dest_component>(dest_id);
-        auto *src = getComponent<src_component>(src_id);
+        auto dest = getComponent<dest_component>(dest_id);
+        auto src = getComponent<src_component>(src_id);
     }
 };
 
