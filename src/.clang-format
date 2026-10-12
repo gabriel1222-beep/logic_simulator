@@ -1,0 +1,8 @@
+ColumnLimit: 0
+AllowShortLoopsOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortFunctionsOnASingleLine: All
+AllowShortCaseLabelsOnASingleLine: true
+IndentWidth: 4
+TabWidth: 4
+
