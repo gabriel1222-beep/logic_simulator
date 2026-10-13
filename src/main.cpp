@@ -105,7 +105,7 @@ struct LogicGate {
         } else if constexpr (type == Component_type_ids::Not) {
             return !entries[0];
         } else if constexpr (type == Component_type_ids::Xor) {
-            return ((entries[0] && !entries[1]) || (!entries[0] && entries[1]));
+            return (entries[0] ^ !entries[1]);
         }
     }
 };
