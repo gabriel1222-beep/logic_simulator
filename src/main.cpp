@@ -36,7 +36,8 @@ constexpr bool EqualType() {
 #define LOGIC_GATE_COMPONENTS(X) \
     X(And)                       \
     X(Or)                        \
-    X(Not)
+    X(Not)\
+    X(Xor)
 #define OTHER_COMPONENTS(X) \
     X(OnInput)
 enum class Component_type_ids : std::uint8_t {
@@ -89,18 +90,22 @@ constexpr bool component_exists() {
 
 template <std::uint8_t Entries, Component_type_ids type>
 struct LogicGate {
-    static_assert(Components::islogicComponent<type>(),"Invalid type for LogicComponent" );
-    std::uint8_t entries[Entries] = {0};
-    bool out(){
+    static_assert(Components::islogicComponent<type>(), "Invalid type for LogicComponent");
+    static_assert(type != Component_type_ids::And || Entries >= 2, "And gate must have at least 2 entries");
+    static_assert(type != Component_type_ids::Or || Entries >= 2, "Or gate must have at least 2 entries");
+    static_assert(type != Component_type_ids::Xor || Entries >= 2, "Xor gate must have at least 2 entries");
+    static_assert(type != Component_type_ids::Not || Entries == 1, "Not gate must have exactly 1 entry");
+
+    std::uint8_t entries[Entries]{};
+    constexpr bool out() {
         if constexpr (type == Component_type_ids::And) {
-            static_assert(Entries>1,"And gate Must have at least 2 entries" );
             return entries[0] && entries[1];
-        }else if constexpr (type == Component_type_ids::Or) {
-            static_assert(Entries>1,"Or gate Must have at least 2 entries" );
+        } else if constexpr (type == Component_type_ids::Or) {
             return entries[0] || entries[1];
-        }else if constexpr (type == Component_type_ids::Not) {
-            static_assert(Entries==1,"Not gate Must have at 1 entry" );
+        } else if constexpr (type == Component_type_ids::Not) {
             return !entries[0];
+        } else if constexpr (type == Component_type_ids::Xor) {
+            return ((entries[0] && !entries[1]) || (!entries[0] && entries[1]));
         }
     }
 };
@@ -112,6 +117,6 @@ struct Circuit {
 };
 
 int main() {
-    LogicGate<2, Components::LogicGates::Not> gate;
+    LogicGate<2, Components::LogicGates::And> gate;
     return 0;
 }
