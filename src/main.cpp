@@ -8,6 +8,10 @@
 #include <vector>
 
 #define BIT_ON(value, bit) (((value) & (std::uint8_t{1} << bit)) != 0)
+template <class X, class... Values>
+consteval bool orChain(const X &x, const Values &...values) {
+    return ((x == values) || ...);
+}
 template <const std::uint8_t bit>
 constexpr bool bitOn(const std::uint8_t &value) {
     static_assert(bit < 8, "Bit must be less than 8");
@@ -49,6 +53,14 @@ namespace LogicGates {
 LOGIC_GATE_COMPONENTS(X)
 #undef X
 } // namespace LogicGates
+template <Component_type_ids id>
+consteval bool islogicComponent() {
+#define X(component) \
+    if constexpr (id == Component_type_ids::component) return 1;
+    LOGIC_GATE_COMPONENTS(X)
+#undef X
+    return 0;
+}
 
 namespace other {
 #define X(component) inline constexpr Component_type_ids component = Component_type_ids::component;
@@ -74,114 +86,32 @@ constexpr bool component_exists() {
     return 0;
 }
 } // namespace Components
+
+template <std::uint8_t Entries, Component_type_ids type>
+struct LogicGate {
+    static_assert(Components::islogicComponent<type>(),"Invalid type for LogicComponent" );
+    std::uint8_t entries[Entries] = {0};
+    bool out(){
+        if constexpr (type == Component_type_ids::And) {
+            static_assert(Entries>1,"And gate Must have at least 2 entries" );
+            return entries[0] && entries[1];
+        }else if constexpr (type == Component_type_ids::Or) {
+            static_assert(Entries>1,"Or gate Must have at least 2 entries" );
+            return entries[0] || entries[1];
+        }else if constexpr (type == Component_type_ids::Not) {
+            static_assert(Entries==1,"Not gate Must have at 1 entry" );
+            return !entries[0];
+        }
+    }
+};
 struct Circuit {
   private:
     unsigned long int ids = 0;
 
   public:
-    template <std::uint8_t number_of_inputs, std::uint8_t number_of_outputs>
-    struct Gate_ID {
-        static_assert(number_of_inputs > 0 && number_of_outputs > 0,
-                      "Invalid identification");
-        std::uint32_t id;
-        std::uint32_t entries_ids[number_of_inputs] = {0};
-        std::uint32_t output_ids[number_of_outputs] = {0};
-    };
-    struct AndGate {
-        std::uint8_t entries = 0;
-        Gate_ID<2, 1> gate_id;
-        bool getOut() {
-            return (BIT_ON(entries, 0) && BIT_ON(entries, 1)) ? 1 : 0;
-        }
-    };
-    struct OrGate {
-        std::uint8_t entries = 0;
-        Gate_ID<2, 1> gate_id;
-        bool getOut() {
-            return (BIT_ON(entries, 0) || BIT_ON(entries, 1)) ? 1 : 0;
-        }
-    };
-    struct NotGate {
-        std::uint8_t entry = 0;
-        Gate_ID<1, 1> gate_id;
-        bool getOut() { return !entry; }
-    };
-    struct OnInput {
-        std::uint32_t id, out_id;
-        bool getOut() { return 1; }
-    };
-
-  private:
-    std::vector<AndGate> AndGates;
-    std::vector<NotGate> NotGates;
-    std::vector<OrGate> OrGates;
-    std::vector<OnInput> OnInputs;
-    using component_ptrs_t = std::variant<AndGate *, NotGate *, OrGate *, OnInput *, std::nullptr_t>;
-    template <Component_type_ids component>
-    component_ptrs_t getComponent(std::uint32_t id) {
-        static_assert(Components::component_exists<component>(), "\n\ngetComponent(): Invalid component\n\n");
-        switch (component) {
-        case Components::LogicGates::And:
-            for (auto &andGate : AndGates)
-                if (andGate.gate_id.id == id) return &andGate;
-            break;
-        case Components::LogicGates::Or:
-            for (auto &orGate : OrGates)
-                if (orGate.gate_id.id == id) return &orGate;
-            break;
-        case Components::LogicGates::Not:
-            for (auto &notGate : NotGates)
-                if (notGate.gate_id.id == id) return &notGate;
-            break;
-        case Components::other::OnInput:
-            for (auto &onInput : OnInputs)
-                if (onInput.id == id) return &onInput;
-            break;
-        }
-
-        return nullptr;
-    }
-
-  public:
-    std::uint32_t newComponent(const Component_type_ids gate_type) {
-        switch (gate_type) {
-        case Components::LogicGates::Or: {
-            OrGate gate;
-            gate.gate_id.id = ids;
-            OrGates.push_back(gate);
-        } break;
-        case Components::LogicGates::And: {
-            AndGate gate;
-            gate.gate_id.id = ids;
-            AndGates.push_back(gate);
-        }
-        case Components::LogicGates::Not: {
-            NotGate gate;
-            gate.gate_id.id = ids;
-            NotGates.push_back(gate);
-            break;
-        }
-        case Components::other::OnInput:
-            OnInput in;
-            in.id = ids;
-            OnInputs.push_back(in);
-        }
-        ids++;
-        return ids - 1;
-    }
-    template <auto dest_component, auto src_component>
-    void connect(std::uint32_t dest_id, std::uint32_t src_id,
-                 std::uint8_t dest_entry) {
-        static_assert(component_exists(dest_component), "Circuit::Connect(): invalid dest_component");
-        static_assert(component_exists(src_component), "Circuit::Connect(): invalid src_component");
-        auto dest = getComponent<dest_component>(dest_id);
-        auto src = getComponent<src_component>(src_id);
-        if constexpr (dest_component == Components::LogicGates::And) {
-            if (AndGate *gate = std::get_if<AndGate *>(&dest); gate != nullptr) {
-                
-            }
-        }
-    }
 };
 
-int main() { return 0; }
+int main() {
+    LogicGate<2, Components::LogicGates::Not> gate;
+    return 0;
+}
