@@ -1,7 +1,7 @@
 [
 {
   "directory": "/home/pc/Projects/CXX/logic_simulator/build",
-  "command": "/usr/bin/c++  -I/home/pc/Projects/CXX/logic_simulator/include -isystem /home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include -isystem /home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include/SDL2 -O0 -o CMakeFiles/app.dir/src/main.cpp.o -c /home/pc/Projects/CXX/logic_simulator/src/main.cpp",
+  "command": "/usr/bin/c++  -I/home/pc/Projects/CXX/logic_simulator/include -isystem /home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include -isystem /home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include/SDL2 -O0 -std=c++20 -o CMakeFiles/app.dir/src/main.cpp.o -c /home/pc/Projects/CXX/logic_simulator/src/main.cpp",
   "file": "/home/pc/Projects/CXX/logic_simulator/src/main.cpp",
   "output": "CMakeFiles/app.dir/src/main.cpp.o"
 }

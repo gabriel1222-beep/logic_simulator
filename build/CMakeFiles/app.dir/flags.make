@@ -6,5 +6,5 @@ CXX_DEFINES =
 
 CXX_INCLUDES = -I/home/pc/Projects/CXX/logic_simulator/include -isystem /home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include -isystem /home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include/SDL2
 
-CXX_FLAGS = -O0
+CXX_FLAGS = -O0 -std=c++20
 

@@ -3,12 +3,15 @@
 #include <cstdint>
 #include <cstdlib>
 #include <sys/types.h>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
-#define bitOn_MACRO(value, bit) (((value) & (std::uint8_t{1} << bit)) != 0)
-constexpr bool bitOn(const std::uint8_t &value, const std::uint8_t bit) {
-    return bit < 8 && ((value & (std::uint8_t{1} << bit)) != 0);
+#define BIT_ON(value, bit) (((value) & (std::uint8_t{1} << bit)) != 0)
+template <const std::uint8_t bit>
+constexpr bool bitOn(const std::uint8_t &value) {
+    static_assert(bit < 8, "Bit must be less than 8");
+    return ((value & (std::uint8_t{1} << bit)) != 0);
 }
 
 constexpr void setBit(std::uint8_t &value, const std::uint8_t bit) {
@@ -21,6 +24,10 @@ constexpr void clearBit(std::uint8_t &value, const std::uint8_t bit) {
     if (bit < 8) {
         value &= static_cast<std::uint8_t>(~(std::uint8_t{1} << bit));
     }
+}
+template <auto typeA, auto typeB>
+constexpr bool EqualType() {
+    return std::is_same_v<decltype(typeA), decltype(typeB)>;
 }
 #define LOGIC_GATE_COMPONENTS(X) \
     X(And)                       \
@@ -84,14 +91,14 @@ struct Circuit {
         std::uint8_t entries = 0;
         Gate_ID<2, 1> gate_id;
         bool getOut() {
-            return (bitOn_MACRO(entries, 0) && bitOn_MACRO(entries, 1)) ? 1 : 0;
+            return (BIT_ON(entries, 0) && BIT_ON(entries, 1)) ? 1 : 0;
         }
     };
     struct OrGate {
         std::uint8_t entries = 0;
         Gate_ID<2, 1> gate_id;
         bool getOut() {
-            return (bitOn_MACRO(entries, 0) || bitOn_MACRO(entries, 1)) ? 1 : 0;
+            return (BIT_ON(entries, 0) || BIT_ON(entries, 1)) ? 1 : 0;
         }
     };
     struct NotGate {
@@ -169,6 +176,11 @@ struct Circuit {
         static_assert(component_exists(src_component), "Circuit::Connect(): invalid src_component");
         auto dest = getComponent<dest_component>(dest_id);
         auto src = getComponent<src_component>(src_id);
+        if constexpr (dest_component == Components::LogicGates::And) {
+            if (AndGate *gate = std::get_if<AndGate *>(&dest); gate != nullptr) {
+                
+            }
+        }
     }
 };
 
