@@ -2,6 +2,8 @@ app: \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/Scrt1.o \
   /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crti.o \
   /usr/lib/gcc/x86_64-linux-gnu/15/crtbeginS.o \
+  /usr/lib/gcc/x86_64-linux-gnu/15/libasan_preinit.o \
+  /usr/lib/gcc/x86_64-linux-gnu/15/libasan.so \
   CMakeFiles/app.dir/src/main.cpp.o \
   vcpkg_installed/x64-linux/debug/lib/libfmtd.a \
   vcpkg_installed/x64-linux/debug/lib/libSDL2maind.a \
@@ -40,6 +42,10 @@ app: \
 /usr/lib/gcc/x86_64-linux-gnu/15/../../../x86_64-linux-gnu/crti.o:
 
 /usr/lib/gcc/x86_64-linux-gnu/15/crtbeginS.o:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/libasan_preinit.o:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/libasan.so:
 
 CMakeFiles/app.dir/src/main.cpp.o:
 
