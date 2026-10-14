@@ -2,6 +2,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <iostream>
+#include <iterator>
 #include <sys/types.h>
 #include <type_traits>
 #include <variant>
@@ -36,88 +38,97 @@ constexpr bool EqualType() {
 #define LOGIC_GATE_COMPONENTS(X) \
     X(And)                       \
     X(Or)                        \
-    X(Not)\
-    X(Xor)
-#define OTHER_COMPONENTS(X) \
-    X(OnInput)
-enum class Component_type_ids : std::uint8_t {
+    X(Not)                       \
+    X(Xor)                       \
+    X(ON_IN)
+enum class LogicGates : std::uint8_t {
 #define X(component) component,
     LOGIC_GATE_COMPONENTS(X)
-#undef X
-#define X(component) component,
-        OTHER_COMPONENTS(X)
 #undef X
 };
-namespace Components {
-namespace LogicGates {
-#define X(component) inline constexpr Component_type_ids component = Component_type_ids::component;
-LOGIC_GATE_COMPONENTS(X)
-#undef X
-} // namespace LogicGates
-template <Component_type_ids id>
-consteval bool islogicComponent() {
-#define X(component) \
-    if constexpr (id == Component_type_ids::component) return 1;
-    LOGIC_GATE_COMPONENTS(X)
-#undef X
-    return 0;
-}
-
-namespace other {
-#define X(component) inline constexpr Component_type_ids component = Component_type_ids::component;
-OTHER_COMPONENTS(X)
-#undef X
-} // namespace other
-template <Component_type_ids id>
-constexpr bool component_exists() {
-#define X(component)                                     \
-    if constexpr (id == Component_type_ids::component) { \
-        return 1;                                        \
-    }
-    LOGIC_GATE_COMPONENTS(X)
-
-#undef X
-#define X(component)                                     \
-    if constexpr (id == Component_type_ids::component) { \
-        return 1;                                        \
-    }
-    OTHER_COMPONENTS(X)
-
-#undef X
-    return 0;
-}
-} // namespace Components
-
-template <std::uint8_t Entries, Component_type_ids type>
+template <LogicGates type>
 struct LogicGate {
-    static_assert(Components::islogicComponent<type>(), "Invalid type for LogicComponent");
-    static_assert(type != Component_type_ids::And || Entries >= 2, "And gate must have at least 2 entries");
-    static_assert(type != Component_type_ids::Or || Entries >= 2, "Or gate must have at least 2 entries");
-    static_assert(type != Component_type_ids::Xor || Entries >= 2, "Xor gate must have at least 2 entries");
-    static_assert(type != Component_type_ids::Not || Entries == 1, "Not gate must have exactly 1 entry");
-
-    std::uint8_t entries[Entries]{};
-    constexpr bool out() {
-        if constexpr (type == Component_type_ids::And) {
-            return entries[0] && entries[1];
-        } else if constexpr (type == Component_type_ids::Or) {
-            return entries[0] || entries[1];
-        } else if constexpr (type == Component_type_ids::Not) {
-            return !entries[0];
-        } else if constexpr (type == Component_type_ids::Xor) {
-            return (entries[0] ^ entries[1]);
+    bool *entries[2]{};
+    bool inputs[2]{};
+    bool output = 0;
+      bool readInput(std::size_t i) const {
+        return entries[i] ? *entries[i] : 0;
         }
+
+    constexpr bool *getOutput() {
+        if constexpr (type == LogicGates::ON_IN) {
+            output = 1;
+            return &output;
+        }
+        const bool A = readInput(0);
+        const bool B = readInput(1);
+        if constexpr (type == LogicGates::And) {
+            output = A && B;
+        } else if constexpr (type == LogicGates::Or) {
+            output = A || B;
+        } else if constexpr (type == LogicGates::Not) {
+            output = !A;
+        } else if constexpr (type == LogicGates::Xor) {
+            output = A ^ B;
+        }
+        return &output;
     }
 };
 struct Circuit {
-  private:
-    unsigned long int ids = 0;
-    std::vector<Logu>
+    using Component = std::variant<LogicGate<LogicGates::And>, LogicGate<LogicGates::Or>, LogicGate<LogicGates::Not>, LogicGate<LogicGates::Xor>, LogicGate<LogicGates::ON_IN>>;
+    using Component_ptrs = Component *;
+    std::vector<Component_ptrs> Components;
+    bool *Component_getOutput(Component &comp) {
+        return std::visit(
+            [](auto &gate) { return gate.getOutput(); },
+            comp);
+    }
+    void addComponent(Component *comp) {
+        Components.push_back(comp);
+    }
+    void connect(Component &dest, bool dest_entry, Component &src) {
+        bool *source_output = std::visit(
+            [](auto &gate) { return gate.getOutput(); },
+            src);
+        std::visit(
+            [dest_entry, source_output](auto &gate) {
+                gate.entries[dest_entry] = source_output;
+            },
+            dest);
+    }
+    void step(uint32_t steps) {
+        for (uint32_t i = 0; i < steps; i++) {
 
-  public:
+            for (Component *component_ptr : Components) {
+                if (component_ptr) {
+                    std::visit([](auto &gate) {
+                        gate.getOutput();
+                    },
+                               *component_ptr);
+                }
+            }
+        }
+    }
 };
-
 int main() {
-    LogicGate<2, Components::LogicGates::And> gate;
+    Circuit::Component AndGateA{LogicGate<LogicGates::And>{}};
+    Circuit::Component AndGateB{LogicGate<LogicGates::And>{}};
+    Circuit::Component OnIN{LogicGate<LogicGates::ON_IN>{}};
+    Circuit circuit;
+    circuit.addComponent(&AndGateA);
+    circuit.addComponent(&AndGateB);
+    circuit.addComponent(&OnIN);
+    circuit.connect(AndGateA, 0, AndGateB);
+    circuit.connect(AndGateA, 1, AndGateB);
+    circuit.connect(AndGateB, 1, OnIN);
+    circuit.connect(AndGateB, 0, OnIN);
+
+    bool *GateAOut = std::visit(
+        [](auto &gate) { return gate.getOutput(); },
+        AndGateA);
+    circuit.step(1000);
+    std::cout << GateAOut << std::endl;
+    std::cout << *GateAOut;
+
     return 0;
 }
