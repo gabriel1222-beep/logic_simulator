@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <ostream>
 #include <sys/types.h>
 #include <type_traits>
 #include <variant>
@@ -59,33 +60,26 @@ concept LogicGateComponent =
 template <Components_enum type>
     requires LogicGateComponent<type>
 struct LogicGate {
-    static constexpr std::uint8_t input_number = type == Components_enum::ON_IN || type == Components_enum::Button ? 0 : type == Components_enum::Not ? 1
-                                                                                                                                                      : 2;
-    bool *entries[input_number]{};
-    bool inputs[input_number]{};
+    static constexpr std::uint8_t input_number = (type == Components_enum::ON_IN || type == Components_enum::Button) ? 0 : type == Components_enum::Not ? 1
+                                                                                                                                                        : 2;
+    bool entries[input_number]{};
     bool output = 0;
-    bool readInput(std::size_t i) const {
-        return entries[i] ? *entries[i] : 0;
-    }
-
-    constexpr bool *getOutput() {
+    constexpr void evaluate() {
         if constexpr (input_number == 0) {
             if constexpr (type == Components_enum::ON_IN) {
                 output = 1;
-                return &output;
             } else if constexpr (type == Components_enum::Button) {
                 output = !output;
-                return &output;
             }
         } else if constexpr (input_number == 1) {
-            const bool A = readInput(0);
+            const bool A = entries[0];
             if constexpr (type == Components_enum::Not) {
                 output = !A;
             }
 
         } else if (input_number == 2) {
-            const bool A = readInput(0);
-            const bool B = readInput(1);
+            const bool A = entries[0];
+            const bool B = entries[1];
             if constexpr (type == Components_enum::And) {
                 output = A && B;
             } else if constexpr (type == Components_enum::Or) {
@@ -94,7 +88,9 @@ struct LogicGate {
                 output = A ^ B;
             }
         }
-        return &output;
+    }
+    bool getOutput() {
+        return output;
     }
 };
 struct Circuit {
@@ -102,63 +98,64 @@ struct Circuit {
                                         LogicGate<Components_enum ::Or>,
                                         LogicGate<Components_enum ::Not>,
                                         LogicGate<Components_enum ::Xor>,
-                                        LogicGate<Components_enum ::ON_IN>>;
-    using Component = std::variant<LogicComponent>;
-    std::vector<Component> Components;
-    bool *Component_getOutput(LogicComponent &comp) {
+                                        LogicGate<Components_enum ::ON_IN>,
+                                        LogicGate<Components_enum::Button>>;
+    std::vector<LogicComponent> Components;
+    using id = std::size_t;
+    struct Connector {
+        id dest_entry_id;
+        id dest_id;
+        id src_id;
+    };
+    std::vector<Connector> connections;
+    bool Component_getOutput(id id) {
         return std::visit(
             [](auto &gate) { return gate.getOutput(); },
+            Components[id]);
+    }
+    void Component_Evaluate(LogicComponent &comp) {
+        std::visit(
+            [](auto &gate) { gate.evaluate(); },
             comp);
     }
-    void addComponent(LogicComponent comp) {
+    id addComponent(LogicComponent comp) {
         Components.push_back(comp);
+        return Components.size() - 1;
     }
-    void connect(LogicComponent &dest, bool dest_entry, LogicComponent &src) {
-        bool *source_output = std::visit(
-            [](auto &gate) { return gate.getOutput(); },
-            src);
-        std::visit(
-            [dest_entry, source_output](auto &gate) {
-                gate.entries[dest_entry] = source_output;
-            },
-            dest);
+    void connect(id dest, std::uint8_t dest_entry, id src) {
+        Connector connector;
+        connector.dest_id = dest;
+        connector.src_id = src;
+        connector.dest_entry_id = dest_entry;
+        connections.push_back(connector);
     }
+    //TODO: Simulate the circuit
     void step(uint32_t steps) {
-        for (uint32_t i = 0; i < steps; i++) {
-
-            for (Component &comp : Components) {
-                const bool output = std::visit(
-                    [](auto &logic_component) {
-                        return std::visit(
-                            [](auto &gate) {
-                                return *gate.getOutput();
-                            },
-                            logic_component);
-                    },
-                    comp);
-            }
-        }
     }
 };
 int main() {
     Circuit::LogicComponent AndGateA{LogicGate<Components_enum::And>{}};
     Circuit::LogicComponent AndGateB{LogicGate<Components_enum::And>{}};
     Circuit::LogicComponent OnIN{LogicGate<Components_enum::ON_IN>{}};
+    Circuit::LogicComponent notG{LogicGate<Components_enum::Not>{}};
     Circuit circuit;
-    circuit.addComponent(AndGateA);
-    circuit.addComponent(AndGateB);
-    circuit.addComponent(OnIN);
-    circuit.connect(AndGateA, 0, AndGateB);
-    circuit.connect(AndGateA, 1, AndGateB);
-    circuit.connect(AndGateB, 1, OnIN);
-    circuit.connect(AndGateB, 0, OnIN);
+    auto andAId = circuit.addComponent(AndGateA);
+    auto andBId = circuit.addComponent(AndGateB);
+    auto onInId = circuit.addComponent(OnIN);
+    auto notGId = circuit.addComponent(notG);
+    circuit.connect(andBId, 1, onInId);
+    circuit.connect(andBId, 0, onInId);
+    circuit.connect(andAId, 0, andBId);
+    circuit.connect(andAId, 1, andBId);
+    circuit.connect(notGId, 0, andAId);
 
-    bool *GateAOut = std::visit(
-        [](auto &gate) { return gate.getOutput(); },
-        AndGateA);
+    bool GateAOut = circuit.Component_getOutput(andAId);
+    bool GateBOut = circuit.Component_getOutput(andBId);
+    bool NotGateOut = circuit.Component_getOutput(notGId);
     circuit.step(1000);
     std::cout << GateAOut << std::endl;
-    std::cout << *GateAOut;
+    std::cout << GateBOut << std::endl;
+    std::cout << NotGateOut << std::endl;
 
     return 0;
 }
