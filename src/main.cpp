@@ -35,47 +35,52 @@ template <auto typeA, auto typeB>
 constexpr bool EqualType() {
     return std::is_same_v<decltype(typeA), decltype(typeB)>;
 }
-#define LOGIC_GATE_COMPONENTS(X) \
+#define COMPONENTS(X) \
     X(And)                       \
     X(Or)                        \
     X(Not)                       \
     X(Xor)                       \
     X(ON_IN)
-enum class LogicGates : std::uint8_t {
+enum class Components_enum : std::uint8_t {
 #define X(component) component,
-    LOGIC_GATE_COMPONENTS(X)
+    COMPONENTS(X)
 #undef X
+    UNDEFINED_COMPONENT
 };
-template <LogicGates type>
+template <Components_enum type>
 struct LogicGate {
     bool *entries[2]{};
     bool inputs[2]{};
     bool output = 0;
-      bool readInput(std::size_t i) const {
+    bool readInput(std::size_t i) const {
         return entries[i] ? *entries[i] : 0;
-        }
+    }
 
     constexpr bool *getOutput() {
-        if constexpr (type == LogicGates::ON_IN) {
+        if constexpr (type == Components_enum::ON_IN) {
             output = 1;
             return &output;
         }
         const bool A = readInput(0);
         const bool B = readInput(1);
-        if constexpr (type == LogicGates::And) {
+        if constexpr (type == Components_enum::And) {
             output = A && B;
-        } else if constexpr (type == LogicGates::Or) {
+        } else if constexpr (type == Components_enum::Or) {
             output = A || B;
-        } else if constexpr (type == LogicGates::Not) {
+        } else if constexpr (type == Components_enum::Not) {
             output = !A;
-        } else if constexpr (type == LogicGates::Xor) {
+        } else if constexpr (type == Components_enum::Xor) {
             output = A ^ B;
         }
         return &output;
     }
 };
 struct Circuit {
-    using Component = std::variant<LogicGate<LogicGates::And>, LogicGate<LogicGates::Or>, LogicGate<LogicGates::Not>, LogicGate<LogicGates::Xor>, LogicGate<LogicGates::ON_IN>>;
+    using Component = std::variant<
+    #define X(component) LogicGate<Components_enum::component>,
+        COMPONENTS(X)
+    #undef X
+    LogicGate<Components_enum::UNDEFINED_COMPONENT>>;
     using Component_ptrs = Component *;
     std::vector<Component_ptrs> Components;
     bool *Component_getOutput(Component &comp) {
