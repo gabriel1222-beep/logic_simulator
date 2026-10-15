@@ -1,9 +1,8 @@
-#include <atomic>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
-#include <iterator>
 #include <sys/types.h>
 #include <type_traits>
 #include <variant>
@@ -36,62 +35,85 @@ constexpr bool EqualType() {
     return std::is_same_v<decltype(typeA), decltype(typeB)>;
 }
 #define COMPONENTS(X) \
-    X(And)                       \
-    X(Or)                        \
-    X(Not)                       \
-    X(Xor)                       \
-    X(ON_IN)
+    X(And)            \
+    X(Or)             \
+    X(Not)            \
+    X(Xor)            \
+    X(ON_IN)          \
+    X(Button)
 enum class Components_enum : std::uint8_t {
 #define X(component) component,
     COMPONENTS(X)
 #undef X
-    UNDEFINED_COMPONENT
+        UNDEFINED_COMPONENT
 };
+template <Components_enum T>
+concept LogicGateComponent =
+    T == Components_enum::And ||
+    T == Components_enum::Or ||
+    T == Components_enum::Not ||
+    T == Components_enum::Xor ||
+    T == Components_enum::Button ||
+    T == Components_enum::ON_IN;
+
 template <Components_enum type>
+    requires LogicGateComponent<type>
 struct LogicGate {
-    bool *entries[2]{};
-    bool inputs[2]{};
+    static constexpr std::uint8_t input_number = type == Components_enum::ON_IN || type == Components_enum::Button ? 0 : type == Components_enum::Not ? 1
+                                                                                                                                                      : 2;
+    bool *entries[input_number]{};
+    bool inputs[input_number]{};
     bool output = 0;
     bool readInput(std::size_t i) const {
         return entries[i] ? *entries[i] : 0;
     }
 
     constexpr bool *getOutput() {
-        if constexpr (type == Components_enum::ON_IN) {
-            output = 1;
-            return &output;
-        }
-        const bool A = readInput(0);
-        const bool B = readInput(1);
-        if constexpr (type == Components_enum::And) {
-            output = A && B;
-        } else if constexpr (type == Components_enum::Or) {
-            output = A || B;
-        } else if constexpr (type == Components_enum::Not) {
-            output = !A;
-        } else if constexpr (type == Components_enum::Xor) {
-            output = A ^ B;
+        if constexpr (input_number == 0) {
+            if constexpr (type == Components_enum::ON_IN) {
+                output = 1;
+                return &output;
+            } else if constexpr (type == Components_enum::Button) {
+                output = !output;
+                return &output;
+            }
+        } else if constexpr (input_number == 1) {
+            const bool A = readInput(0);
+            if constexpr (type == Components_enum::Not) {
+                output = !A;
+            }
+
+        } else if (input_number == 2) {
+            const bool A = readInput(0);
+            const bool B = readInput(1);
+            if constexpr (type == Components_enum::And) {
+                output = A && B;
+            } else if constexpr (type == Components_enum::Or) {
+                output = A || B;
+            } else if constexpr (type == Components_enum::Xor) {
+                output = A ^ B;
+            }
         }
         return &output;
     }
 };
 struct Circuit {
-    using Component = std::variant<
-    #define X(component) LogicGate<Components_enum::component>,
-        COMPONENTS(X)
-    #undef X
-    LogicGate<Components_enum::UNDEFINED_COMPONENT>>;
-    using Component_ptrs = Component *;
-    std::vector<Component_ptrs> Components;
-    bool *Component_getOutput(Component &comp) {
+    using LogicComponent = std::variant<LogicGate<Components_enum ::And>,
+                                        LogicGate<Components_enum ::Or>,
+                                        LogicGate<Components_enum ::Not>,
+                                        LogicGate<Components_enum ::Xor>,
+                                        LogicGate<Components_enum ::ON_IN>>;
+    using Component = std::variant<LogicComponent>;
+    std::vector<Component> Components;
+    bool *Component_getOutput(LogicComponent &comp) {
         return std::visit(
             [](auto &gate) { return gate.getOutput(); },
             comp);
     }
-    void addComponent(Component *comp) {
+    void addComponent(LogicComponent comp) {
         Components.push_back(comp);
     }
-    void connect(Component &dest, bool dest_entry, Component &src) {
+    void connect(LogicComponent &dest, bool dest_entry, LogicComponent &src) {
         bool *source_output = std::visit(
             [](auto &gate) { return gate.getOutput(); },
             src);
@@ -104,25 +126,28 @@ struct Circuit {
     void step(uint32_t steps) {
         for (uint32_t i = 0; i < steps; i++) {
 
-            for (Component *component_ptr : Components) {
-                if (component_ptr) {
-                    std::visit([](auto &gate) {
-                        gate.getOutput();
+            for (Component &comp : Components) {
+                const bool output = std::visit(
+                    [](auto &logic_component) {
+                        return std::visit(
+                            [](auto &gate) {
+                                return *gate.getOutput();
+                            },
+                            logic_component);
                     },
-                               *component_ptr);
-                }
+                    comp);
             }
         }
     }
 };
 int main() {
-    Circuit::Component AndGateA{LogicGate<LogicGates::And>{}};
-    Circuit::Component AndGateB{LogicGate<LogicGates::And>{}};
-    Circuit::Component OnIN{LogicGate<LogicGates::ON_IN>{}};
+    Circuit::LogicComponent AndGateA{LogicGate<Components_enum::And>{}};
+    Circuit::LogicComponent AndGateB{LogicGate<Components_enum::And>{}};
+    Circuit::LogicComponent OnIN{LogicGate<Components_enum::ON_IN>{}};
     Circuit circuit;
-    circuit.addComponent(&AndGateA);
-    circuit.addComponent(&AndGateB);
-    circuit.addComponent(&OnIN);
+    circuit.addComponent(AndGateA);
+    circuit.addComponent(AndGateB);
+    circuit.addComponent(OnIN);
     circuit.connect(AndGateA, 0, AndGateB);
     circuit.connect(AndGateA, 1, AndGateB);
     circuit.connect(AndGateB, 1, OnIN);
