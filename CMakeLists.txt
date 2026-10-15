@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(MyProject LANGUAGES CXX)
-set(CMAKE_CXX_FLAGS "-O0 -std=c++20 -fsanitize=address")
+set(CMAKE_CXX_FLAGS "-O0 -std=c++20 -fsanitize=address -g")
 
 set(SRC_PATH src/main.cpp)
 set(INCLUDE_PATH include/)
