@@ -10,6 +10,11 @@
 #include <vector>
 
 #define BIT_ON(value, bit) (((value) & (std::uint8_t{1} << bit)) != 0)
+template <class F>
+void repeat(std::size_t size, F &&f) {
+    for (std::size_t i = 0; i < size; ++i)
+        f(i);
+}
 template <class X, class... Values>
 consteval bool orChain(const X &x, const Values &...values) {
     return ((x == values) || ...);
@@ -130,8 +135,7 @@ struct Circuit {
         connections.push_back(connector);
     }
     void step(uint32_t steps) {
-        for (std::size_t i = 0; i < steps; i++) {
-
+        repeat(steps, [&](std::size_t step) {
             for (id i = 0; i < Components.size(); i++) {
                 Component_Evaluate(Components[i]);
                 const bool output = Component_getOutput(i);
@@ -149,7 +153,7 @@ struct Circuit {
                                dest);
                 }
             }
-        }
+        });
     }
 };
 int main() {
