@@ -129,8 +129,27 @@ struct Circuit {
         connector.dest_entry_id = dest_entry;
         connections.push_back(connector);
     }
-    //TODO: Simulate the circuit
     void step(uint32_t steps) {
+        for (std::size_t i = 0; i < steps; i++) {
+
+            for (id i = 0; i < Components.size(); i++) {
+                Component_Evaluate(Components[i]);
+                const bool output = Component_getOutput(i);
+
+                for (const auto &c : connections) {
+                    if (c.src_id != i) continue;
+
+                    auto &dest = Components.at(c.dest_id);
+                    std::visit([c, output](auto &gate) {
+                        if (c.dest_entry_id >= gate.input_number) {
+                            throw std::out_of_range("índice de entrada inválido");
+                        }
+                        gate.entries[c.dest_entry_id] = output;
+                    },
+                               dest);
+                }
+            }
+        }
     }
 };
 int main() {
@@ -149,10 +168,10 @@ int main() {
     circuit.connect(andAId, 1, andBId);
     circuit.connect(notGId, 0, andAId);
 
+    circuit.step(1000);
     bool GateAOut = circuit.Component_getOutput(andAId);
     bool GateBOut = circuit.Component_getOutput(andBId);
     bool NotGateOut = circuit.Component_getOutput(notGId);
-    circuit.step(1000);
     std::cout << GateAOut << std::endl;
     std::cout << GateBOut << std::endl;
     std::cout << NotGateOut << std::endl;
