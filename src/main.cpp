@@ -146,6 +146,16 @@ struct Circuit {
                                         OnIn,
                                         Button>;
     std::vector<LogicComponent> Components;
+    bool getOutput(LogicComponent &comp) {
+        return std::visit(
+            [](auto &gate) { return gate.getOutput(); },
+            comp);
+    }
+    void evaluate(LogicComponent &comp) {
+        std::visit(
+            [](auto &gate) { gate.evaluate(); },
+            comp);
+    }
     using id = std::size_t;
     struct Connector {
         std::uint8_t dest_entry_id;
@@ -153,17 +163,12 @@ struct Circuit {
         Connector(id dest, std::uint8_t dest_entry, id src) : dest_id(dest), dest_entry_id(dest_entry), src_id(src) {}
     };
     std::vector<Connector> connections;
-    bool Component_getOutput(id id) {
+    bool getOutput(id id) {
         return std::visit(
             [](auto &gate) { return gate.getOutput(); },
             Components[id]);
     }
-    void Component_Evaluate(LogicComponent &comp) {
-        std::visit(
-            [](auto &gate) { gate.evaluate(); },
-            comp);
-    }
-    void Component_process(const Connector &connection, const bool out) {
+    void processConnection(const Connector &connection, const bool out) {
         auto &dest = Components.at(connection.dest_id);
         std::visit([connection, out](auto &gate) {
             if (connection.dest_entry_id >= gate.numberOfEntries()) throw std::out_of_range("Invalid entry id");
@@ -182,11 +187,11 @@ struct Circuit {
     void step(std::size_t steps) {
         repeat_fwrd(steps, [&](std::size_t) {
             for (std::size_t i = 0; i < Components.size(); i++) {
-                Component_Evaluate(Components[i]);
-                const bool output = Component_getOutput(i);
+                evaluate(Components[i]);
+                const bool output = getOutput(Components[i]);
                 for (const Connector &c : connections) {
                     if (c.src_id != i) continue;
-                    Component_process(c, output);
+                    processConnection(c, output);
                 }
             }
         });
@@ -205,9 +210,9 @@ int main() {
     circuit.connect(notGId, 0, andAId);
 
     circuit.step(1000);
-    bool GateAOut = circuit.Component_getOutput(andAId);
-    bool GateBOut = circuit.Component_getOutput(andBId);
-    bool NotGateOut = circuit.Component_getOutput(notGId);
+    bool GateAOut = circuit.getOutput(andAId);
+    bool GateBOut = circuit.getOutput(andBId);
+    bool NotGateOut = circuit.getOutput(notGId);
     std::cout << GateAOut << std::endl;
     std::cout << GateBOut << std::endl;
     std::cout << NotGateOut << std::endl;
