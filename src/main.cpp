@@ -1,58 +1,35 @@
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <ostream>
 #include <sys/types.h>
-#include <type_traits>
 #include <variant>
 #include <vector>
 
 #define BIT_ON(value, bit) (((value) & (std::uint8_t{1} << bit)) != 0)
 template <class F>
-void repeat(std::size_t size, F &&f) {
+void repeat_fwrd(std::size_t size, const F &&f) {
     for (std::size_t i = 0; i < size; ++i)
         f(i);
 }
-template <class X, class... Values>
-consteval bool orChain(const X &x, const Values &...values) {
-    return ((x == values) || ...);
-}
-template <const std::uint8_t bit>
-constexpr bool bitOn(const std::uint8_t &value) {
-    static_assert(bit < 8, "Bit must be less than 8");
-    return ((value & (std::uint8_t{1} << bit)) != 0);
+template <class F>
+void repeat_bckrd(std::size_t size, const F &&f) {
+    for (std::size_t i = size; i > 0; i--)
+        f(i);
 }
 
-constexpr void setBit(std::uint8_t &value, const std::uint8_t bit) {
-    if (bit < 8) {
-        value ^= std::uint8_t{1} << bit;
-    }
-}
-
-constexpr void clearBit(std::uint8_t &value, const std::uint8_t bit) {
-    if (bit < 8) {
-        value &= static_cast<std::uint8_t>(~(std::uint8_t{1} << bit));
-    }
-}
-template <auto typeA, auto typeB>
-constexpr bool EqualType() {
-    return std::is_same_v<decltype(typeA), decltype(typeB)>;
-}
-#define COMPONENTS(X) \
-    X(And)            \
-    X(Or)             \
-    X(Not)            \
-    X(Xor)            \
-    X(ON_IN)          \
-    X(Button)
 enum class Components_enum : std::uint8_t {
-#define X(component) component,
-    COMPONENTS(X)
-#undef X
-        UNDEFINED_COMPONENT
+    And,
+    Or,
+    Not,
+    Xor,
+    ON_IN,
+    Button,
 };
+bool SameComponent(Components_enum component_typeA, Components_enum component_typeB) {
+    return (component_typeA == component_typeB) ? true : false;
+}
 template <Components_enum T>
 concept LogicGateComponent =
     T == Components_enum::And ||
@@ -65,24 +42,23 @@ concept LogicGateComponent =
 template <Components_enum type>
     requires LogicGateComponent<type>
 struct LogicGate {
-    static constexpr std::uint8_t input_number = (type == Components_enum::ON_IN || type == Components_enum::Button) ? 0 : type == Components_enum::Not ? 1
-                                                                                                                                                        : 2;
-    bool entries[input_number]{};
+    static constexpr std::uint8_t number_of_entries = (type == Components_enum::ON_IN || type == Components_enum::Button) ? 0 : type == Components_enum::Not ? 1
+                                                                                                                                                             : 2;
+    bool entries[number_of_entries]{};
     bool output = 0;
     constexpr void evaluate() {
-        if constexpr (input_number == 0) {
+        if constexpr (number_of_entries == 0) {
             if constexpr (type == Components_enum::ON_IN) {
                 output = 1;
             } else if constexpr (type == Components_enum::Button) {
                 output = !output;
             }
-        } else if constexpr (input_number == 1) {
+        } else if constexpr (number_of_entries == 1) {
             const bool A = entries[0];
             if constexpr (type == Components_enum::Not) {
                 output = !A;
             }
-
-        } else if (input_number == 2) {
+        } else if constexpr (number_of_entries == 2) {
             const bool A = entries[0];
             const bool B = entries[1];
             if constexpr (type == Components_enum::And) {
@@ -108,9 +84,9 @@ struct Circuit {
     std::vector<LogicComponent> Components;
     using id = std::size_t;
     struct Connector {
-        id dest_entry_id;
-        id dest_id;
-        id src_id;
+        std::uint8_t dest_entry_id;
+        id dest_id,src_id;
+        Connector(id dest, std::uint8_t dest_entry, id src) : dest_id(dest), dest_entry_id(dest_entry), src_id(src) {}
     };
     std::vector<Connector> connections;
     bool Component_getOutput(id id) {
@@ -123,49 +99,38 @@ struct Circuit {
             [](auto &gate) { gate.evaluate(); },
             comp);
     }
-    id addComponent(LogicComponent comp) {
-        Components.push_back(comp);
-        return Components.size() - 1;
+    template <Components_enum type>
+        requires LogicGateComponent<type>
+    id addComponent() {
+        Components.emplace_back(std::in_place_type<LogicGate<type>>);
+        return Components.size()-1;
     }
-    void connect(id dest, std::uint8_t dest_entry, id src) {
-        Connector connector;
-        connector.dest_id = dest;
-        connector.src_id = src;
-        connector.dest_entry_id = dest_entry;
-        connections.push_back(connector);
+    void connect(id dest_id, std::uint8_t dest_entry, id src_id) {
+        connections.emplace_back(dest_id, dest_entry, src_id);
     }
-    void step(uint32_t steps) {
-        repeat(steps, [&](std::size_t step) {
-            for (id i = 0; i < Components.size(); i++) {
+    void step(std::size_t steps) {
+        repeat_fwrd(steps, [&](std::size_t) {
+            for (std::size_t i = 0; i < Components.size(); i++) {
                 Component_Evaluate(Components[i]);
                 const bool output = Component_getOutput(i);
-
                 for (const auto &c : connections) {
                     if (c.src_id != i) continue;
-
                     auto &dest = Components.at(c.dest_id);
                     std::visit([c, output](auto &gate) {
-                        if (c.dest_entry_id >= gate.input_number) {
-                            throw std::out_of_range("índice de entrada inválido");
-                        }
+                        if (c.dest_entry_id >= gate.number_of_entries) throw std::out_of_range("Invalid entry id");
                         gate.entries[c.dest_entry_id] = output;
-                    },
-                               dest);
+                    },dest);
                 }
             }
         });
     }
 };
 int main() {
-    Circuit::LogicComponent AndGateA{LogicGate<Components_enum::And>{}};
-    Circuit::LogicComponent AndGateB{LogicGate<Components_enum::And>{}};
-    Circuit::LogicComponent OnIN{LogicGate<Components_enum::ON_IN>{}};
-    Circuit::LogicComponent notG{LogicGate<Components_enum::Not>{}};
     Circuit circuit;
-    auto andAId = circuit.addComponent(AndGateA);
-    auto andBId = circuit.addComponent(AndGateB);
-    auto onInId = circuit.addComponent(OnIN);
-    auto notGId = circuit.addComponent(notG);
+    auto andAId = circuit.addComponent<Components_enum::And>();
+    auto andBId = circuit.addComponent<Components_enum::And>();
+    auto onInId = circuit.addComponent<Components_enum::ON_IN>();
+    auto notGId = circuit.addComponent<Components_enum::Not>();
     circuit.connect(andBId, 1, onInId);
     circuit.connect(andBId, 0, onInId);
     circuit.connect(andAId, 0, andBId);
