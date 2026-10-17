@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <variant>
 #include <vector>
+#include<fmt/format.h>
 #define READ_BIT(byte, bit) ((((byte) >> (bit)) & 1u) != 0u)
 void turn_on(std::uint8_t &byte, unsigned bit) {
     byte |= 1u << bit;
@@ -146,23 +147,30 @@ struct Circuit {
                                         XorGate,
                                         OnIn,
                                         Button>;
-    using id = std::size_t;
-    struct Connector {
-        std::uint8_t dest_entry_id = 0;
-        id dest_id = 0;
-        Connector() = default;
-        Connector(id dest, std::uint8_t dest_entry) : dest_id(dest), dest_entry_id(dest_entry) {}
-    };
-    struct Component {
+    using id = std::uint32_t;
+    struct alignas(64) Component {
         LogicComponent component;
-        std::array<Connector, 10> outgoings;
+        id dest_id[24];
+        std::uint8_t dest_entry_id[24];
         std::uint8_t n = 0;
+        Component(LogicComponent component) : component(component){}
         void connect(id dest_id, std::uint8_t dest_entry) {
-            outgoings[n].dest_id = dest_id;
-            outgoings[n].dest_entry_id = dest_entry;
+            this->dest_id[n] = dest_id;
+            this->dest_entry_id[n] = dest_entry;
             n++;
         }
     };
+        std::size_t printSize(){
+            std::cout << fmt::format("LogicComponent size = {}\n",sizeof(Component::component));
+            std::cout << fmt::format("Dest_entry_id size = {}\n",sizeof(Component::dest_entry_id));
+            std::cout << fmt::format("Dest_id size = {}\n",sizeof(Component::dest_id));
+            std::cout << fmt::format("n size = {}\n",sizeof(Component::n));
+            std::cout << fmt::format("Estimated size = {}\n",sizeof(Component::n)+sizeof(Component::dest_id)+sizeof(Component::dest_entry_id)+sizeof(Component::component));
+            return sizeof(Component::n)+sizeof(Component::dest_id)+sizeof(Component::dest_entry_id)+sizeof(Component::component);
+        }
+        void CacheLinesNeeded(long double bytes){
+            std::cout << fmt::format("{} bytes needs {} cache lines\n",bytes,bytes/64);
+        }
     std::vector<Component> Components;
     bool getOutput(LogicComponent &comp) {
         return std::visit(
@@ -179,20 +187,17 @@ struct Circuit {
             [](auto &gate) { return gate.getOutput(); },
             Components[id].component);
     }
-    void processConnection(const Connector &connection, const bool out) {
-        auto &dest = Components[connection.dest_id];
-        std::visit([connection, out](auto &gate) {
-            if (connection.dest_entry_id >= gate.numberOfEntries()) throw std::out_of_range("Invalid entry id");
-            set_bit(gate.in, connection.dest_entry_id, out);
+    void processConnection(id dest_id,std::uint8_t dest_entry_id,const bool out) {
+        auto &dest = Components[dest_id];
+        std::visit([dest_entry_id,dest_id, out](auto &gate) {
+            if (dest_entry_id >= gate.numberOfEntries()) throw std::out_of_range("Invalid entry id");
+            set_bit(gate.in, dest_entry_id, out);
         },
                    dest.component);
     }
     template <class type>
     id addComponent() {
-        Components.emplace_back(Component{
-            LogicComponent{std::in_place_type<type>},
-            {},
-            0});
+        Components.emplace_back(LogicComponent(std::in_place_type<type>));
         return Components.size() - 1;
     }
     void connect(id dest_id, std::uint8_t dest_entry, id src_id) {
@@ -204,7 +209,7 @@ struct Circuit {
                 evaluate(component.component);
                 const bool output = getOutput(component.component);
                 for(std::size_t i = 0; i<component.n;i++){
-                    processConnection(component.outgoings[i], output);
+                    processConnection(component.dest_id[i],component.dest_entry_id[i], output);
                 }
             }
         });
@@ -212,6 +217,10 @@ struct Circuit {
 };
 int main() {
     Circuit circuit;
+    auto size = circuit.printSize();
+    circuit.CacheLinesNeeded(size);
+    std::cout <<"Actual size = " <<sizeof(Circuit::Component)<<"\n";
+    circuit.CacheLinesNeeded(sizeof(Circuit::Component));
     auto andAId = circuit.addComponent<AndGate>();
     auto andBId = circuit.addComponent<AndGate>();
     auto onInId = circuit.addComponent<OnIn>();
