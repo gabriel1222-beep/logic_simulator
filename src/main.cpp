@@ -1,3 +1,4 @@
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -145,7 +146,24 @@ struct Circuit {
                                         XorGate,
                                         OnIn,
                                         Button>;
-    std::vector<LogicComponent> Components;
+    using id = std::size_t;
+    struct Connector {
+        std::uint8_t dest_entry_id = 0;
+        id dest_id = 0;
+        Connector() = default;
+        Connector(id dest, std::uint8_t dest_entry) : dest_id(dest), dest_entry_id(dest_entry) {}
+    };
+    struct Component {
+        LogicComponent component;
+        std::array<Connector, 10> outgoings;
+        std::uint8_t n = 0;
+        void connect(id dest_id, std::uint8_t dest_entry) {
+            outgoings[n].dest_id = dest_id;
+            outgoings[n].dest_entry_id = dest_entry;
+            n++;
+        }
+    };
+    std::vector<Component> Components;
     bool getOutput(LogicComponent &comp) {
         return std::visit(
             [](auto &gate) { return gate.getOutput(); },
@@ -156,42 +174,37 @@ struct Circuit {
             [](auto &gate) { gate.evaluate(); },
             comp);
     }
-    using id = std::size_t;
-    struct Connector {
-        std::uint8_t dest_entry_id;
-        id dest_id, src_id;
-        Connector(id dest, std::uint8_t dest_entry, id src) : dest_id(dest), dest_entry_id(dest_entry), src_id(src) {}
-    };
-    std::vector<Connector> connections;
     bool getOutput(id id) {
         return std::visit(
             [](auto &gate) { return gate.getOutput(); },
-            Components[id]);
+            Components[id].component);
     }
     void processConnection(const Connector &connection, const bool out) {
-        auto &dest = Components.at(connection.dest_id);
+        auto &dest = Components[connection.dest_id];
         std::visit([connection, out](auto &gate) {
             if (connection.dest_entry_id >= gate.numberOfEntries()) throw std::out_of_range("Invalid entry id");
             set_bit(gate.in, connection.dest_entry_id, out);
         },
-                   dest);
+                   dest.component);
     }
     template <class type>
     id addComponent() {
-        Components.emplace_back(std::in_place_type<type>);
+        Components.emplace_back(Component{
+            LogicComponent{std::in_place_type<type>},
+            {},
+            0});
         return Components.size() - 1;
     }
     void connect(id dest_id, std::uint8_t dest_entry, id src_id) {
-        connections.emplace_back(dest_id, dest_entry, src_id);
+        Components.at(src_id).connect(dest_id, dest_entry);
     }
     void step(std::size_t steps) {
         repeat_fwrd(steps, [&](std::size_t) {
-            for (std::size_t i = 0; i < Components.size(); i++) {
-                evaluate(Components[i]);
-                const bool output = getOutput(Components[i]);
-                for (const Connector &c : connections) {
-                    if (c.src_id != i) continue;
-                    processConnection(c, output);
+            for (auto &component : Components) {
+                evaluate(component.component);
+                const bool output = getOutput(component.component);
+                for(std::size_t i = 0; i<component.n;i++){
+                    processConnection(component.outgoings[i], output);
                 }
             }
         });
@@ -208,7 +221,6 @@ int main() {
     circuit.connect(andAId, 0, andBId);
     circuit.connect(andAId, 1, andBId);
     circuit.connect(notGId, 0, andAId);
-
     circuit.step(1000);
     bool GateAOut = circuit.getOutput(andAId);
     bool GateBOut = circuit.getOutput(andBId);
