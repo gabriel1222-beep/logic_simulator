@@ -1,4 +1,5 @@
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -6,7 +7,9 @@
 #include <fmt/format.h>
 #include <iostream>
 #include <ostream>
+#include <stdexcept>
 #include <sys/types.h>
+#include <thread>
 #include <variant>
 #include <vector>
 #define READ_BIT(byte, bit) ((((byte) >> (bit)) & 1u) != 0u)
@@ -48,6 +51,9 @@ enum class Components_enum : std::uint8_t {
     Xor,
     ON_IN,
     Button,
+    In,
+    Out,
+    undefined,
 };
 }
 bool SameComponent(Enums::Components_enum component_typeA, Enums::Components_enum component_typeB) {
@@ -60,116 +66,78 @@ bool SameComponent(Enums::Components_enum component_typeA, Enums::Components_enu
 #define LOGIC_GATE_MAX_OUTGOING_CONNECTIONS 14
 struct Gate {
     uint8_t in = 0b00000000;
-    Gate() : in(0b00000000) {}
+    Enums::Components_enum type = Enums::Components_enum::undefined;
+    Gate(Enums::Components_enum type) : in(0b00000000), type(type) {}
+    std::uint64_t dest_ids[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
+    std::uint8_t dest_entry[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
     Gate(uint8_t value) : in(value) {}
-    std::uint8_t getConnectionCounter() {
+    std::size_t printSize() {
+        std::cout << fmt::format("Type enum size = {}\n", sizeof(Gate::type));
+        std::cout << fmt::format("State byte (in) size = {}\n", sizeof(Gate::in));
+        std::cout << fmt::format("Dest_entry array size = {}\n", sizeof(Gate::dest_entry));
+        std::cout << fmt::format("Dest_ids array size = {}\n", sizeof(Gate::dest_ids));
+        std::size_t total_size = sizeof(Gate::dest_ids) + sizeof(Gate::dest_entry) + sizeof(Gate::type) + sizeof(Gate::in);
+        std::cout << fmt::format("Estimated Gate instance size = {}\n", total_size);
+        return total_size;
+    }
+    std::size_t getTrueSize() {
+        return sizeof(Gate);
+    }
+    std::uint8_t getOutgoingConnections() {
         return (in >> 3) & 0x1F;
     }
     void setCounter(std::uint8_t value) {
         in = static_cast<std::uint8_t>(
             (in & 0b00000111) | ((value & 0b00000111) << 3));
     }
-    void increaseConnectionCounter() {
-        std::uint8_t n = getConnectionCounter();
+    void connect(std::uint64_t dest_id, std::uint8_t dest_entry) {
+        uint8_t n = getOutgoingConnections();
+        this->dest_ids[n] = dest_id;
+        this->dest_entry[n] = dest_entry;
         n++;
         setCounter(n);
     }
-};
-struct NotGate : Gate {
-    std::uint8_t numberOfEntries() {
-        return 1;
-    }
     void evaluate() {
-        flip_bit(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-    bool getOutput() {
-        return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-};
-struct AndGate : Gate {
-
-    std::uint8_t numberOfEntries() {
-        return 2;
-    }
-    void evaluate() {
-        if (READ_BIT(in, LOGIC_GATE_A_BIT) && READ_BIT(in, LOGIC_GATE_B_BIT)) {
+        using T = Enums::Components_enum;
+        switch (static_cast<T>(type)) {
+        case T::And:
+            if (READ_BIT(in, LOGIC_GATE_A_BIT) && READ_BIT(in, LOGIC_GATE_B_BIT)) {
+                turn_on(in, LOGIC_GATE_OUTPUT_BIT);
+            } else {
+                turn_off(in, LOGIC_GATE_OUTPUT_BIT);
+            }
+            return;
+        case T::Not:
+            set_bit(in, LOGIC_GATE_OUTPUT_BIT, !READ_BIT(in, LOGIC_GATE_A_BIT));
+            return;
+        case T::Or:
+            if (READ_BIT(in, LOGIC_GATE_A_BIT) || READ_BIT(in, LOGIC_GATE_B_BIT)) {
+                turn_on(in, LOGIC_GATE_OUTPUT_BIT);
+            } else {
+                turn_off(in, LOGIC_GATE_OUTPUT_BIT);
+            }
+            return;
+        case T::Xor:
+            if (READ_BIT(in, LOGIC_GATE_A_BIT) ^ READ_BIT(in, LOGIC_GATE_B_BIT)) {
+                turn_on(in, LOGIC_GATE_OUTPUT_BIT);
+            } else {
+                turn_off(in, LOGIC_GATE_OUTPUT_BIT);
+            }
+            return;
+        case T::ON_IN:
             turn_on(in, LOGIC_GATE_OUTPUT_BIT);
-        } else {
-            turn_off(in, LOGIC_GATE_OUTPUT_BIT);
+            return;
+        case T::In:
+            return;
+        case T::Out:
+            return;
+        case T::Button:
+            flip_bit(in, LOGIC_GATE_OUTPUT_BIT);
+            return;
+        case T::undefined:
+            throw ::std::out_of_range("UNDEFINED COMPONENT");
         }
     }
-    bool getOutput() {
-        return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-};
-struct OrGate : Gate {
-
-    std::uint8_t numberOfEntries() {
-        return 2;
-    }
-    void evaluate() {
-        if (READ_BIT(in, LOGIC_GATE_A_BIT) || READ_BIT(in, LOGIC_GATE_B_BIT)) {
-            turn_on(in, LOGIC_GATE_OUTPUT_BIT);
-        } else {
-            turn_off(in, LOGIC_GATE_OUTPUT_BIT);
-        }
-    }
-    bool getOutput() {
-        return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-};
-struct XorGate : Gate {
-
-    std::uint8_t numberOfEntries() {
-        return 2;
-    }
-    void evaluate() {
-        if (READ_BIT(in, LOGIC_GATE_A_BIT) ^ READ_BIT(in, LOGIC_GATE_B_BIT)) {
-            turn_on(in, LOGIC_GATE_OUTPUT_BIT);
-        } else {
-            turn_off(in, LOGIC_GATE_OUTPUT_BIT);
-        }
-    }
-    bool getOutput() {
-        return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-};
-struct Button : Gate {
-
-    std::uint8_t numberOfEntries() {
-        return 0;
-    }
-    void evaluate() {
-        flip_bit(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-    bool getOutput() {
-        return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-};
-struct OnIn : Gate {
-    std::uint8_t numberOfEntries() {
-        return 0;
-    }
-    OnIn() : Gate(LOGIC_GATE_OUTPUT_ON) {}
-    void evaluate() {}
-    bool getOutput() {
-        return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-};
-struct In : Gate {
-    std::uint8_t numberOfEntries() {
-        return 1;
-    }
-    void evaluate() {}
-    bool getOutput() {
-        return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
-    }
-};
-struct Out : Gate {
-    std::uint8_t numberOfEntries() {
-        return 1;
-    }
-    void evaluate() {}
     bool getOutput() {
         return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
     }
@@ -181,13 +149,12 @@ struct Circuit {
                                         XorGate,
                                         OnIn,
                                         Button, In, Out>;
-    using id = std::uint64_t;
     struct alignas(64) Component {
-        id dest_ids[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
+        std::uint64_t dest_ids[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
         std::uint8_t dest_entry[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
         LogicComponent component;
         Component(LogicComponent component) : component(component) {}
-        void connect(id dest_id, std::uint8_t dest_entry) {
+        void connect(std::uint64_t dest_id, std::uint8_t dest_entry) {
             std::visit([&](auto &gate) {
                 uint8_t n = gate.getConnectionCounter();
                 this->dest_ids[n] = dest_id;
@@ -197,12 +164,12 @@ struct Circuit {
             },
                        component);
         }
-        std::uint8_t outgoingConnections(){
-            
+        std::uint8_t outgoingConnections() {
+
             return std::visit([&](auto &gate) {
                 return gate.getConnectionCounter();
             },
-                       component);
+                              component);
         }
         void evaluate() {
             std::visit(
@@ -214,13 +181,6 @@ struct Circuit {
                 [](auto &gate) { return gate.getOutput(); },
                 component);
         }
-        std::size_t printSize() {
-            std::cout << fmt::format("LogicComponent size = {}\n", sizeof(Component::component));
-            std::cout << fmt::format("Dest_entry size = {}\n", sizeof(Component::dest_entry));
-            std::cout << fmt::format("Dest_ids size = {}\n", sizeof(Component::dest_ids));
-            std::cout << fmt::format("Estimated Component size = {}\n", sizeof(Component::dest_ids) + sizeof(Component::dest_entry) + sizeof(Component::component));
-            return sizeof(Component::dest_ids) + sizeof(Component::dest_entry) + sizeof(Component::component);
-        }
     };
     void CacheLinesNeeded(long double bytes) {
         std::cout << fmt::format("{} bytes needs {} cache lines\n", bytes, bytes / 64);
@@ -228,14 +188,14 @@ struct Circuit {
     struct Data {
         std::vector<Component> Components;
         template <class type>
-        id addComponent() {
+        std::uint64_t addComponent() {
             Components.emplace_back(LogicComponent(std::in_place_type<type>));
             return Components.size() - 1;
         }
-        void connect(id dest_id, std::uint8_t dest_entry, id src_id) {
+        void connect(std::uint64_t dest_id, std::uint8_t dest_entry, std::uint64_t src_id) {
             Components.at(src_id).connect(dest_id, dest_entry);
         }
-        void setOutput(id dest_id, std::uint8_t dest_entry_id, const bool out) {
+        void transferOutput(std::uint64_t dest_id, std::uint8_t dest_entry_id, const bool out) {
             auto &dest = Components[dest_id];
             std::visit([dest_entry_id, dest_id, out](auto &gate) {
                 if (dest_entry_id >= gate.numberOfEntries()) throw std::out_of_range("Invalid entry id");
@@ -243,7 +203,7 @@ struct Circuit {
             },
                        dest.component);
         }
-        Component getComponent(id id) {
+        Component getComponent(std::uint64_t id) {
             return Components[id];
         }
         std::size_t getinputNumber() {
@@ -264,33 +224,40 @@ struct Circuit {
             }
             return outs;
         }
+        std::string getComponentType(std::size_t id) {
+            if (std::holds_alternative<Out>(Components[id].component)) {
+                return "Out gate";
+            }
+            if (std::holds_alternative<AndGate>(Components[id].component)) {
+                return "AndGate";
+            }
+            if (std::holds_alternative<NotGate>(Components[id].component)) {
+                return "NotGate";
+            }
+            if (std::holds_alternative<OrGate>(Components[id].component)) {
+                return "OrGate";
+            }
+            if (std::holds_alternative<OnIn>(Components[id].component)) {
+                return "OnIn";
+            }
+            if (std::holds_alternative<In>(Components[id].component)) {
+                return "In";
+            }
+            return "UNDEFINED";
+        }
     };
     Data data;
-    void startSimulation() {
-        bool running = 1;
-        while (running) {
-            for (auto &component : data.Components) {
-                component.evaluate();
-                const bool output = component.getOutput();
-                for (std::size_t i = 0; i < component.outgoingConnections(); i++) {
-                    data.setOutput(component.dest_ids[i], component.dest_entry[i], output);
-                }
+    void stepSimulation() {
+        for (std::size_t j = 0; j < data.Components.size(); j++) {
+            data.Components[j].evaluate();
+            const bool output = data.Components[j].getOutput();
+            // std::cout<<fmt::format("data.Components[\x1b[93m{}\x1b[0m] type = {} --- output: {}\n",j,data.getComponentType(j),output);
+            //     std::cout<<fmt::format("Outgoing connections: {}\n",data.Components[j].outgoingConnections());
+            for (std::size_t i = 0; i < data.Components[j].outgoingConnections(); i++) {
+                data.transferOutput(data.Components[j].dest_ids[i], data.Components[j].dest_entry[i], output);
+                // std::cout<<fmt::format("Connected to entry {} of {}\n",data.Components[j].dest_entry[i],data.Components[j].dest_ids[i]);
             }
         }
-    }
-};
-struct Simulator {
-    std::vector<Circuit::Component> Components;
-    std::vector<Circuit> Circuits;
-    std::size_t circuits = 0;
-    void ExtractComponentsfromCircuit(Circuit &circuit) {
-        Components.insert(Components.end(), circuit.data.Components.begin(), circuit.data.Components.end());
-    }
-    std::size_t addCircuit(Circuit &circuit) {
-        Circuits.push_back(circuit);
-        return Circuits.size() - 1;
-    }
-    void connect(std::size_t circuit_dest_id, std::uint8_t circuit_dest_entry, std::size_t circuit_src_id, std::uint8_t circuit_src_output) {
     }
 };
 Circuit XorGate() {
@@ -300,9 +267,9 @@ Circuit XorGate() {
     auto orA = circuit.data.addComponent<OrGate>();
     auto notA = circuit.data.addComponent<NotGate>();
     auto notB = circuit.data.addComponent<NotGate>();
-    auto inA = circuit.data.addComponent<In>();
-    auto inB = circuit.data.addComponent<In>();
-    auto out = circuit.data.addComponent<In>();
+    auto inA = circuit.data.addComponent<OnIn>();
+    auto inB = circuit.data.addComponent<OnIn>();
+    auto out = circuit.data.addComponent<Out>();
     circuit.data.connect(notA, 0, inA);
     circuit.data.connect(andA, 0, notA);
     circuit.data.connect(andA, 1, inB); // AndA = notA and B
@@ -315,11 +282,24 @@ Circuit XorGate() {
     return circuit;
 }
 int main() {
-    Circuit circuit = XorGate();
-    auto comp = circuit.data.getComponent(0);
-    circuit.CacheLinesNeeded(comp.printSize());
-    std::cout <<"True size: " << sizeof(Circuit::Component) << "\n";
-    circuit.CacheLinesNeeded(sizeof(Circuit::Component));
+    Circuit circuit;
+    auto inA = circuit.data.addComponent<OnIn>();
+    auto inB = circuit.data.addComponent<In>();
+    auto notA = circuit.data.addComponent<NotGate>();
+    auto notB = circuit.data.addComponent<NotGate>();
+    auto andA = circuit.data.addComponent<AndGate>();
+    auto andB = circuit.data.addComponent<AndGate>();
+    auto orA = circuit.data.addComponent<OrGate>();
+    auto out = circuit.data.addComponent<Out>();
+    circuit.data.connect(notA, 0, inA);
+    circuit.data.connect(andA, 0, notA);
+    circuit.data.connect(andA, 1, inB); // AndA = notA and B
+    circuit.data.connect(notB, 0, inB);
+    circuit.data.connect(andB, 0, notB);
+    circuit.data.connect(andB, 1, inA); // AndB = notB and A
+    circuit.data.connect(orA, 0, andA);
+    circuit.data.connect(orA, 1, andB);
+    circuit.data.connect(out, 0, orA);
 
     return 0;
 }
