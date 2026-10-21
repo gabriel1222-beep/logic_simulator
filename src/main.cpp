@@ -81,7 +81,7 @@ struct Gate {
     std::size_t getTrueSize() {
         return sizeof(Gate);
     }
-    std::uint8_t getOutgoingConnections() {
+    std::uint8_t OutgoingConnections() {
         return (in >> 3) & 0x1F;
     }
     void setCounter(std::uint8_t value) {
@@ -113,7 +113,7 @@ struct Gate {
         
     }
     void connect(std::uint64_t dest_id, std::uint8_t dest_entry) {
-        uint8_t n = getOutgoingConnections();
+        uint8_t n = OutgoingConnections();
         this->dest_ids[n] = dest_id;
         this->dest_entry[n] = dest_entry;
         n++;
@@ -201,13 +201,38 @@ struct Circuit {
     Data data;
     void stepSimulation() {
         for (std::size_t j = 0; j < data.Components.size(); j++) {
-            data.Components[j].evaluate();
-            const bool output = data.Components[j].getOutput();
-            for (std::size_t i = 0; i < data.Components[j].getOutgoingConnections(); i++) {
-                data.transferOutput(data.Components[j].dest_ids[i], data.Components[j].dest_entry[i], output);
+            auto &component = data.Components[j];
+            component.evaluate();
+            const bool output = component.getOutput();
+            for (std::size_t i = 0; i < component.OutgoingConnections(); i++) {
+                data.transferOutput(component.dest_ids[i], component.dest_entry[i], output);
             }
         }
     }
+};
+struct Position{
+    uint16_t x = 0;
+    uint16_t y = 0;
+    Position(uint16_t x, uint16_t y) : x(x),y(y){}
+};
+struct Camera{
+  Position pos;
+  Camera(Position pos) : pos(pos){}
+  void moveRight(){
+      pos.x++;
+  }  
+  void moveLeft(){
+      pos.x--;
+  }  
+  void moveUp(){
+      pos.y--;
+  }
+  void moveDown(){
+      pos.y++;
+  }
+};
+struct GUI{
+    
 };
 int main() {
     Circuit circuit;
