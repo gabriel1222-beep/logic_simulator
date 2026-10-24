@@ -207,8 +207,20 @@ MyProject_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 MyProject_SOURCE_DIR:STATIC=/home/pc/Projects/CXX/logic_simulator
 
+//Path to a library.
+PNG_LIBRARY_DEBUG:FILEPATH=/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/debug/lib/libpng16d.a
+
+//Path to a library.
+PNG_LIBRARY_RELEASE:FILEPATH=/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/lib/libpng16.a
+
+//Path to a file.
+PNG_PNG_INCLUDE_DIR:PATH=/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include
+
 //The directory containing a CMake configuration file for SDL2.
 SDL2_DIR:PATH=/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/share/sdl2
+
+//The directory containing a CMake configuration file for SDL2_image.
+SDL2_image_DIR:PATH=/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/share/SDL2_image
 
 //Automatically copy dependencies into the output directory for
 // executables.
@@ -270,6 +282,15 @@ X_VCPKG_APPLOCAL_DEPS_INSTALL:BOOL=OFF
 //(experimental) Add USES_TERMINAL to VCPKG_APPLOCAL_DEPS to force
 // serialization.
 X_VCPKG_APPLOCAL_DEPS_SERIALIZED:BOOL=OFF
+
+//Path to a file.
+ZLIB_INCLUDE_DIR:PATH=/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include
+
+//Path to a library.
+ZLIB_LIBRARY_DEBUG:FILEPATH=/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/debug/lib/libz.a
+
+//Path to a library.
+ZLIB_LIBRARY_RELEASE:FILEPATH=/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/lib/libz.a
 
 //Path to a program.
 Z_VCPKG_CL:FILEPATH=Z_VCPKG_CL-NOTFOUND
@@ -420,8 +441,24 @@ CMAKE_TOOLCHAIN_FILE-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//Details about finding PNG
+FIND_PACKAGE_MESSAGE_DETAILS_PNG:INTERNAL=[/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/lib/libpng16.a][/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include][v1.6.58()]
+//Details about finding ZLIB
+FIND_PACKAGE_MESSAGE_DETAILS_ZLIB:INTERNAL=[/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/lib/libz.a][/home/pc/Projects/CXX/logic_simulator/build/vcpkg_installed/x64-linux/include][ ][v1.3.2()]
+//ADVANCED property for variable: PNG_LIBRARY_DEBUG
+PNG_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: PNG_LIBRARY_RELEASE
+PNG_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: PNG_PNG_INCLUDE_DIR
+PNG_PNG_INCLUDE_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: VCPKG_VERBOSE
 VCPKG_VERBOSE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: ZLIB_INCLUDE_DIR
+ZLIB_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: ZLIB_LIBRARY_DEBUG
+ZLIB_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: ZLIB_LIBRARY_RELEASE
+ZLIB_LIBRARY_RELEASE-ADVANCED:INTERNAL=1
 //Making sure VCPKG_MANIFEST_MODE doesn't change
 Z_VCPKG_CHECK_MANIFEST_MODE:INTERNAL=ON
 //Vcpkg root directory
