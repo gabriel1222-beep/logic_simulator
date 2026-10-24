@@ -1,3 +1,4 @@
+#include "BitWise.hpp"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL_error.h>
@@ -13,7 +14,6 @@
 #include <sys/types.h>
 #include <thread>
 #include <vector>
-#include "BitWise.hpp"
 template <typename T, typename... Args>
 constexpr bool matches_any(const T &target, const Args &...items) {
     return ((target == items) || ...);
@@ -22,25 +22,6 @@ void exitError(std::string Error) {
     std::cout << "[\x1b[93mFATAL ERROR\x1b[0m]" << Error << std::endl;
     exit(EXIT_FAILURE);
 }
-void turn_on(std::uint8_t &byte, unsigned int bit) {
-    byte |= 1u << bit;
-}
-
-void turn_off(std::uint8_t &byte, unsigned int bit) {
-    byte &= ~(1u << bit);
-}
-
-void flip_bit(std::uint8_t &byte, unsigned int bit) {
-    byte ^= 1u << bit;
-}
-
-void set_bit(std::uint8_t &byte, unsigned int bit, bool value) {
-    if (value)
-        turn_on(byte, bit);
-    else
-        turn_off(byte, bit);
-}
-
 
 namespace Enums {
 enum class Components_enum : std::uint8_t {
@@ -69,7 +50,7 @@ struct Gate {
     std::uint8_t dest_entry[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
     uint8_t in = 0b00000000;
     const Enums::Components_enum type = Enums::Components_enum::undefined;
-    Gate(Enums::Components_enum type) : in(0b00000000),type(type) {}
+    Gate(Enums::Components_enum type) : in(0b00000000), type(type) {}
     std::size_t printSize() const {
         std::cout << fmt::format("Type enum size = {}\n", sizeof(Gate::type));
         std::cout << fmt::format("State byte (in) size = {}\n", sizeof(Gate::in));
@@ -79,11 +60,11 @@ struct Gate {
         std::cout << fmt::format("Estimated Gate instance size = {}\n", total_size);
         return total_size;
     }
-    std::size_t getTrueSize() const{ 
+    std::size_t getTrueSize() const {
         return sizeof(Gate);
     }
     std::uint8_t OutgoingConnections() const {
-        return BitWise::getField<3,5>(in);
+        return BitWise::getField<3, 5>(in);
     }
     void setCounter(std::uint8_t value) {
         in = BitWise::setField<3, 5>(in, value);
@@ -123,37 +104,37 @@ struct Gate {
         switch (static_cast<T>(type)) {
         case T::And:
             if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) && BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
-                turn_on(in, LOGIC_GATE_OUTPUT_BIT);
+                BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in);
             } else {
-                turn_off(in, LOGIC_GATE_OUTPUT_BIT);
+                BitWise::turn_off<LOGIC_GATE_OUTPUT_BIT>(in);
             }
             return;
         case T::Not:
-            set_bit(in, LOGIC_GATE_OUTPUT_BIT, !BitWise::read_bit<LOGIC_GATE_A_BIT>(in));
+            BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, !BitWise::read_bit<LOGIC_GATE_A_BIT>(in));
             return;
         case T::Or:
             if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) || BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
-                turn_on(in, LOGIC_GATE_OUTPUT_BIT);
+                BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in);
             } else {
-                turn_off(in, LOGIC_GATE_OUTPUT_BIT);
+                BitWise::turn_off<LOGIC_GATE_OUTPUT_BIT>(in);
             }
             return;
         case T::Xor:
             if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) ^ BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
-                turn_on(in, LOGIC_GATE_OUTPUT_BIT);
+                BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in);
             } else {
-                turn_off(in, LOGIC_GATE_OUTPUT_BIT);
+                BitWise::turn_off<LOGIC_GATE_OUTPUT_BIT>(in);
             }
             return;
         case T::ON_IN:
-            turn_on(in, LOGIC_GATE_OUTPUT_BIT);
+            BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in);
             return;
         case T::In:
             return;
         case T::Out:
             return;
         case T::Button:
-            flip_bit(in, LOGIC_GATE_OUTPUT_BIT);
+            BitWise::flip_bit<LOGIC_GATE_OUTPUT_BIT>(in);
             return;
         case T::undefined:
             throw ::std::out_of_range("UNDEFINED COMPONENT");
@@ -163,7 +144,7 @@ struct Gate {
         return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
     }
     template <class F>
-        requires std::invocable<F&, std::uint64_t, std::uint8_t>
+        requires std::invocable<F &, std::uint64_t, std::uint8_t>
     void forEachOutgoingConnection(F &&f) const {
         const auto count = OutgoingConnections();
 
@@ -171,8 +152,12 @@ struct Gate {
             f(dest_ids[i], dest_entry[i]);
         }
     }
-    void setInput(std::uint8_t entry, bool in) {
-        set_bit(this->in, entry, in);
+    void setInput(std::uint8_t entry, bool value) {
+        const auto mask = static_cast<std::uint8_t>(1u << entry);
+        if (value)
+            this->in |= mask;
+        else
+            this->in &= static_cast<std::uint8_t>(~mask);
     }
 };
 struct Circuit {
@@ -262,7 +247,7 @@ struct GUI {
         return gates_to_render.size() - 1;
     }
     std::uint64_t loadCircuitComponentInScreen(Circuit &circuit, std::uint64_t id, std::uint32_t x, std::uint32_t y) {
-        gates_to_render.emplace_back(&circuit.data.LogicComponents[id], Position(x,y));
+        gates_to_render.emplace_back(&circuit.data.LogicComponents[id], Position(x, y));
         return gates_to_render.size() - 1;
     }
     std::uint8_t loadTexture(SDL_Texture *dest, const char *file) {
@@ -324,6 +309,6 @@ int main() {
     circuit.data.connect(out, 0, orA);
     std::jthread simulationEngine(circuitEngineThread);
     GUI gui;
-    gui.loadCircuitComponentInScreen(circuit, andA, 0,0);
+    gui.loadCircuitComponentInScreen(circuit, andA, 0, 0);
     return 0;
 }
