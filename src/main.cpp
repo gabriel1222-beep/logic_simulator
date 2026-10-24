@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <thread>
 #include <vector>
-#define READ_BIT(byte, bit) ((((byte) >> (bit)) & 1u) != 0u)
+#include "BitWise.hpp"
 template <typename T, typename... Args>
 constexpr bool matches_any(const T &target, const Args &...items) {
     return ((target == items) || ...);
@@ -41,16 +41,6 @@ void set_bit(std::uint8_t &byte, unsigned int bit, bool value) {
         turn_off(byte, bit);
 }
 
-template <class F>
-void forEach(std::size_t size, const F &&f) {
-    for (std::size_t i = 0; i < size; ++i)
-        f(i);
-}
-template <class F>
-void repeat_bckrd(std::size_t size, const F &&f) {
-    for (std::size_t i = size; i > 0; i--)
-        f(i);
-}
 
 namespace Enums {
 enum class Components_enum : std::uint8_t {
@@ -78,7 +68,7 @@ struct Gate {
     std::uint64_t dest_ids[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
     std::uint8_t dest_entry[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
     uint8_t in = 0b00000000;
-    Enums::Components_enum type = Enums::Components_enum::undefined;
+    const Enums::Components_enum type = Enums::Components_enum::undefined;
     Gate(Enums::Components_enum type) : in(0b00000000),type(type) {}
     std::size_t printSize() const {
         std::cout << fmt::format("Type enum size = {}\n", sizeof(Gate::type));
@@ -93,11 +83,10 @@ struct Gate {
         return sizeof(Gate);
     }
     std::uint8_t OutgoingConnections() const {
-        return (in >> 3) & 0x1F;
+        return BitWise::getField<3,5>(in);
     }
     void setCounter(std::uint8_t value) {
-        in = static_cast<std::uint8_t>(
-            (in & 0b00000111) | ((value & 0b00011111) << 3));
+        in = BitWise::setField<3, 5>(in, value);
     }
     constexpr std::uint8_t numberOfEntries() const {
         using T = Enums::Components_enum;
@@ -133,24 +122,24 @@ struct Gate {
         using T = Enums::Components_enum;
         switch (static_cast<T>(type)) {
         case T::And:
-            if (READ_BIT(in, LOGIC_GATE_A_BIT) && READ_BIT(in, LOGIC_GATE_B_BIT)) {
+            if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) && BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
                 turn_on(in, LOGIC_GATE_OUTPUT_BIT);
             } else {
                 turn_off(in, LOGIC_GATE_OUTPUT_BIT);
             }
             return;
         case T::Not:
-            set_bit(in, LOGIC_GATE_OUTPUT_BIT, !READ_BIT(in, LOGIC_GATE_A_BIT));
+            set_bit(in, LOGIC_GATE_OUTPUT_BIT, !BitWise::read_bit<LOGIC_GATE_A_BIT>(in));
             return;
         case T::Or:
-            if (READ_BIT(in, LOGIC_GATE_A_BIT) || READ_BIT(in, LOGIC_GATE_B_BIT)) {
+            if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) || BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
                 turn_on(in, LOGIC_GATE_OUTPUT_BIT);
             } else {
                 turn_off(in, LOGIC_GATE_OUTPUT_BIT);
             }
             return;
         case T::Xor:
-            if (READ_BIT(in, LOGIC_GATE_A_BIT) ^ READ_BIT(in, LOGIC_GATE_B_BIT)) {
+            if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) ^ BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
                 turn_on(in, LOGIC_GATE_OUTPUT_BIT);
             } else {
                 turn_off(in, LOGIC_GATE_OUTPUT_BIT);
@@ -171,7 +160,7 @@ struct Gate {
         }
     }
     bool getOutput() {
-        return READ_BIT(in, LOGIC_GATE_OUTPUT_BIT);
+        return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
     }
     template <class F>
         requires std::invocable<F&, std::uint64_t, std::uint8_t>
