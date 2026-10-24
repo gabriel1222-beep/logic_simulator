@@ -71,26 +71,9 @@ struct Gate {
     }
     constexpr std::uint8_t numberOfEntries() const {
         using T = Enums::Components_enum;
-        switch (static_cast<T>(type)) {
-        case T::And:
-            return 2;
-        case T::Not:
-            return 1;
-        case T::Or:
-            return 2;
-        case T::Xor:
-            return 2;
-        case T::ON_IN:
-            return 0;
-        case T::In:
-            return 1;
-        case T::Out:
-            return 1;
-        case T::Button:
-            return 0;
-        case T::undefined:
-            throw ::std::out_of_range("UNDEFINED COMPONENT");
-        }
+        if(matches_any(type, T::And,T::Or,T::Xor)) return 2;
+        if(matches_any(type, T::Not,T::In,T::Out)) return 1;
+        return 0;
     }
     void connect(std::uint64_t dest_id, std::uint8_t dest_entry) {
         uint8_t n = OutgoingConnections();
