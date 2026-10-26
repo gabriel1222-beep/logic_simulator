@@ -4,6 +4,7 @@
 #include <SDL_error.h>
 #include <SDL_render.h>
 #include <SDL_video.h>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -209,14 +210,18 @@ struct Camera {
 struct GUI {
     SDL_Window *window = NULL;
     SDL_Renderer *render = NULL;
-    SDL_Texture *Gate_AND_texture = NULL;
-    SDL_Texture *Gate_OR_texture = NULL;
-    SDL_Texture *Gate_XOR_texture = NULL;
-    SDL_Texture *Gate_NOT_texture = NULL;
-    SDL_Texture *In_ONIN_texture = NULL;
-    SDL_Texture *In_IN_texture = NULL;
-    SDL_Texture *In_OUT_texture = NULL;
-    SDL_Texture *In_BUTTON_texture = NULL;
+    enum Texture_Ids : std::uint8_t{
+        AND_ID = 0,
+        OR_ID,
+        XOR_ID,
+        NOT_ID,
+        ONIN_ID,    
+        IN_ID,
+        OUT_ID,
+        BUTTON_ID,
+        AMOUNT_OF_IDS
+    };
+    std::array<SDL_Texture*,AMOUNT_OF_IDS> textures;
     struct GateData {
         Gate *gate = nullptr;
         Position pos = {0, 0};
@@ -243,20 +248,15 @@ struct GUI {
         if (!window) exitError(SDL_GetError());
         render = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
         if (!render) exitError(SDL_GetError());
-        if (loadTexture(Gate_AND_texture, "AND-Photoroom.png") != 0) exitError(IMG_GetError());
-        if (loadTexture(Gate_XOR_texture, "XOR-Photoroom.png") != 0) exitError(IMG_GetError());
-        if (loadTexture(Gate_OR_texture, "OR-Photoroom.png") != 0) exitError(IMG_GetError());
-        if (loadTexture(Gate_NOT_texture, "NOT-Photoroom.png") != 0) exitError(IMG_GetError());
+        if (loadTexture(textures[AND_ID], "AND-Photoroom.png") != 0) exitError(IMG_GetError());
+        if (loadTexture(textures[XOR_ID], "XOR-Photoroom.png") != 0) exitError(IMG_GetError());
+        if (loadTexture(textures[OR_ID], "OR-Photoroom.png") != 0) exitError(IMG_GetError());
+        if (loadTexture(textures[NOT_ID], "NOT-Photoroom.png") != 0) exitError(IMG_GetError());
     }
     ~GUI() {
-        SDL_DestroyTexture(Gate_AND_texture);
-        SDL_DestroyTexture(Gate_OR_texture);
-        SDL_DestroyTexture(Gate_XOR_texture);
-        SDL_DestroyTexture(Gate_NOT_texture);
-        SDL_DestroyTexture(In_IN_texture);
-        SDL_DestroyTexture(In_ONIN_texture);
-        SDL_DestroyTexture(In_OUT_texture);
-        SDL_DestroyTexture(In_BUTTON_texture);
+        for(SDL_Texture* texture : textures){
+            SDL_DestroyTexture(texture);
+        }
         SDL_DestroyRenderer(render);
         SDL_DestroyWindow(window);
         SDL_Quit();
