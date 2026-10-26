@@ -36,22 +36,22 @@ enum class Components_enum : std::uint8_t {
     Out,
     undefined,
 };
-}
-#define NUMBER_OF_COMPONENTS (static_cast<uint8_t>(Enums::Components_enum::undefined) - 1)
-bool SameComponent(Enums::Components_enum component_typeA, Enums::Components_enum component_typeB) {
-    return (component_typeA == component_typeB) ? true : false;
-}
 #define LOGIC_GATE_OUTPUT_BIT 2
 #define LOGIC_GATE_OUTPUT_ON 0b00000100
 #define LOGIC_GATE_A_BIT 0
 #define LOGIC_GATE_B_BIT 1
 #define LOGIC_GATE_MAX_OUTGOING_CONNECTIONS 14
+} // namespace Enums
+#define NUMBER_OF_COMPONENTS (static_cast<uint8_t>(Enums::Components_enum::undefined) - 1)
+bool SameComponent(Enums::Components_enum component_typeA, Enums::Components_enum component_typeB) {
+    return (component_typeA == component_typeB) ? true : false;
+}
 struct Gate {
     std::uint64_t dest_ids[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
     std::uint8_t dest_entry[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
     uint8_t in = 0b00000000;
-    const Enums::Components_enum type = Enums::Components_enum::undefined;
-    Gate(Enums::Components_enum type) : in(0b00000000), type(type) {}
+    Enums::Components_enum type = Enums::Components_enum::undefined;
+    constexpr Gate(Enums::Components_enum type) : in(0b00000000), type(type) {}
     std::size_t printSize() const {
         std::cout << fmt::format("Type enum size = {}\n", sizeof(Gate::type));
         std::cout << fmt::format("State byte (in) size = {}\n", sizeof(Gate::in));
@@ -70,11 +70,19 @@ struct Gate {
     void setCounter(std::uint8_t value) {
         in = BitWise::setField<3, 5>(in, value);
     }
+    static constexpr std::array<std::uint8_t, 9> EntryCountTable = {
+        2, // 0: And
+        2, // 1: Or
+        1, // 2: Not
+        2, // 3: Xor
+        0, // 4: ON_IN 
+        0, // 5: Button 
+        1, // 6: In
+        1, // 7: Out
+        0  // 8: undefined 
+    };
     constexpr std::uint8_t numberOfEntries() const {
-        using T = Enums::Components_enum;
-        if(matches_any(type, T::And,T::Or,T::Xor)) return 2;
-        if(matches_any(type, T::Not,T::In,T::Out)) return 1;
-        return 0;
+        return EntryCountTable[static_cast<std::size_t>(type)];
     }
     void connect(std::uint64_t dest_id, std::uint8_t dest_entry) {
         uint8_t n = OutgoingConnections();
@@ -83,46 +91,19 @@ struct Gate {
         n++;
         setCounter(n);
     }
-    void evaluate() {
-        using T = Enums::Components_enum;
-        switch (static_cast<T>(type)) {
-        case T::And:
-            if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) && BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
-                BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in);
-            } else {
-                BitWise::turn_off<LOGIC_GATE_OUTPUT_BIT>(in);
-            }
-            return;
-        case T::Not:
-            BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, !BitWise::read_bit<LOGIC_GATE_A_BIT>(in));
-            return;
-        case T::Or:
-            if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) || BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
-                BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in);
-            } else {
-                BitWise::turn_off<LOGIC_GATE_OUTPUT_BIT>(in);
-            }
-            return;
-        case T::Xor:
-            if (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) ^ BitWise::read_bit<LOGIC_GATE_B_BIT>(in)) {
-                BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in);
-            } else {
-                BitWise::turn_off<LOGIC_GATE_OUTPUT_BIT>(in);
-            }
-            return;
-        case T::ON_IN:
-            BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in);
-            return;
-        case T::In:
-            return;
-        case T::Out:
-            return;
-        case T::Button:
-            BitWise::flip_bit<LOGIC_GATE_OUTPUT_BIT>(in);
-            return;
-        case T::undefined:
-            throw ::std::out_of_range("UNDEFINED COMPONENT");
-        }
+    static constexpr std::array<void (*)(uint8_t &), 9> OperationTable = {
+        [](uint8_t &in) { BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, BitWise::read_bit<LOGIC_GATE_A_BIT>(in) && BitWise::read_bit<LOGIC_GATE_B_BIT>(in)); }, // 0: And
+        [](uint8_t &in) { BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, BitWise::read_bit<LOGIC_GATE_A_BIT>(in) || BitWise::read_bit<LOGIC_GATE_B_BIT>(in)); }, // 1: Or
+        [](uint8_t &in) { BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, !BitWise::read_bit<LOGIC_GATE_A_BIT>(in)); },                                           // 2: Not
+        [](uint8_t &in) { BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, BitWise::read_bit<LOGIC_GATE_A_BIT>(in) ^ BitWise::read_bit<LOGIC_GATE_B_BIT>(in)); },  // 3: Xor
+        [](uint8_t &in) { BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in); },                                                                                     // 4: ON_IN
+        [](uint8_t &in) { BitWise::flip_bit<LOGIC_GATE_OUTPUT_BIT>(in); },                                                                                    // 5: Button
+        [](uint8_t &) {},                                                                                                                                     // 6: In
+        [](uint8_t &) {},                                                                                                                                     // 7: Out
+        [](uint8_t &) { throw ::std::out_of_range("UNDEFINED COMPONENT"); }                                                                                   // 8: undefined
+    };
+    inline void evaluate() {
+        OperationTable[static_cast<std::size_t>(type)](in);
     }
     bool getOutput() {
         return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
@@ -210,18 +191,18 @@ struct Camera {
 struct GUI {
     SDL_Window *window = NULL;
     SDL_Renderer *render = NULL;
-    enum Texture_Ids : std::uint8_t{
+    enum Texture_Ids : std::uint8_t {
         AND_ID = 0,
         OR_ID,
         XOR_ID,
         NOT_ID,
-        ONIN_ID,    
+        ONIN_ID,
         IN_ID,
         OUT_ID,
         BUTTON_ID,
         AMOUNT_OF_IDS
     };
-    std::array<SDL_Texture*,AMOUNT_OF_IDS> textures;
+    std::array<SDL_Texture *, AMOUNT_OF_IDS> textures;
     struct GateData {
         Gate *gate = nullptr;
         Position pos = {0, 0};
@@ -254,7 +235,7 @@ struct GUI {
         if (loadTexture(textures[NOT_ID], "NOT-Photoroom.png") != 0) exitError(IMG_GetError());
     }
     ~GUI() {
-        for(SDL_Texture* texture : textures){
+        for (SDL_Texture *texture : textures) {
             SDL_DestroyTexture(texture);
         }
         SDL_DestroyRenderer(render);
