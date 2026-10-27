@@ -7,10 +7,12 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <iostream>
+#include <numeric>
 #include <stdexcept>
 #include <sys/types.h>
 #include <thread>
@@ -25,7 +27,7 @@ void exitError(std::string Error) {
 }
 
 namespace Enums {
-enum class Components_enum : std::uint8_t {
+        enum Components_enum : std::size_t {
     And,
     Or,
     Not,
@@ -42,6 +44,17 @@ enum class Components_enum : std::uint8_t {
 #define LOGIC_GATE_B_BIT 1
 #define LOGIC_GATE_MAX_OUTGOING_CONNECTIONS 14
 } // namespace Enums
+static constexpr std::array<std::uint8_t, 9> EntryCountTable = {
+    2, // 0: And
+    2, // 1: Or
+    1, // 2: Not
+    2, // 3: Xor
+    0, // 4: ON_IN
+    0, // 5: Button ()
+    1, // 6: In
+    1, // 7: Out
+    0  // 8: undefined
+};
 #define NUMBER_OF_COMPONENTS (static_cast<uint8_t>(Enums::Components_enum::undefined) - 1)
 bool SameComponent(Enums::Components_enum component_typeA, Enums::Components_enum component_typeB) {
     return (component_typeA == component_typeB) ? true : false;
@@ -70,19 +83,14 @@ struct Gate {
     void setCounter(std::uint8_t value) {
         in = BitWise::setField<3, 5>(in, value);
     }
-    static constexpr std::array<std::uint8_t, 9> EntryCountTable = {
-        2, // 0: And
-        2, // 1: Or
-        1, // 2: Not
-        2, // 3: Xor
-        0, // 4: ON_IN 
-        0, // 5: Button 
-        1, // 6: In
-        1, // 7: Out
-        0  // 8: undefined 
-    };
-    constexpr std::uint8_t numberOfEntries() const {
+    constexpr std::uint8_t numberOfEntriesTable() const {
         return EntryCountTable[static_cast<std::size_t>(type)];
+    }
+    constexpr std::uint8_t numberOfEntriesif() const {
+        using T = Enums::Components_enum;
+        if (matches_any(type, T::And, T::Or, T::Xor)) return 2;
+        if (matches_any(type, T::Not, T::In, T::Out)) return 1;
+        return 0;
     }
     void connect(std::uint64_t dest_id, std::uint8_t dest_entry) {
         uint8_t n = OutgoingConnections();
@@ -91,20 +99,84 @@ struct Gate {
         n++;
         setCounter(n);
     }
-    static constexpr std::array<void (*)(uint8_t &), 9> OperationTable = {
-        [](uint8_t &in) { BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, BitWise::read_bit<LOGIC_GATE_A_BIT>(in) && BitWise::read_bit<LOGIC_GATE_B_BIT>(in)); }, // 0: And
-        [](uint8_t &in) { BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, BitWise::read_bit<LOGIC_GATE_A_BIT>(in) || BitWise::read_bit<LOGIC_GATE_B_BIT>(in)); }, // 1: Or
-        [](uint8_t &in) { BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, !BitWise::read_bit<LOGIC_GATE_A_BIT>(in)); },                                           // 2: Not
-        [](uint8_t &in) { BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, BitWise::read_bit<LOGIC_GATE_A_BIT>(in) ^ BitWise::read_bit<LOGIC_GATE_B_BIT>(in)); },  // 3: Xor
-        [](uint8_t &in) { BitWise::turn_on<LOGIC_GATE_OUTPUT_BIT>(in); },                                                                                     // 4: ON_IN
-        [](uint8_t &in) { BitWise::flip_bit<LOGIC_GATE_OUTPUT_BIT>(in); },                                                                                    // 5: Button
-        [](uint8_t &) {},                                                                                                                                     // 6: In
-        [](uint8_t &) {},                                                                                                                                     // 7: Out
-        [](uint8_t &) { throw ::std::out_of_range("UNDEFINED COMPONENT"); }                                                                                   // 8: undefined
+    const std::array<bool (*)(const uint8_t), 9> OperationTable = {
+        [](const uint8_t in) {
+            return BitWise::read_bit<LOGIC_GATE_A_BIT>(in) &&
+                   BitWise::read_bit<LOGIC_GATE_B_BIT>(in);
+        }, // 0: And
+
+        [](const uint8_t in) {
+            return BitWise::read_bit<LOGIC_GATE_A_BIT>(in) ||
+                   BitWise::read_bit<LOGIC_GATE_B_BIT>(in);
+        }, // 1: Or
+
+        [](const uint8_t in) {
+            return !BitWise::read_bit<LOGIC_GATE_A_BIT>(in);
+        }, // 2: Not
+
+        [](const uint8_t in) {
+            return (BitWise::read_bit<LOGIC_GATE_A_BIT>(in) !=
+                    BitWise::read_bit<LOGIC_GATE_B_BIT>(in));
+        }, // 3: Xor
+
+        [](const uint8_t) { return true; }, // 4: ON_IN
+
+        [](const uint8_t in) {
+            return !BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
+        }, // 5: Button (toggle output)
+
+        [](const uint8_t in) {
+            return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
+        }, // 6: In (preserve output)
+
+        [](const uint8_t in) {
+            return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
+        }, // 7: Out (preserve output)
+
+        [](const uint8_t) -> bool {
+            throw std::out_of_range("UNDEFINED COMPONENT");
+        } // 8: undefined
     };
-    inline void evaluate() {
-        OperationTable[static_cast<std::size_t>(type)](in);
+
+    inline void evaluateTable() {
+        in = BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, OperationTable[type](in));
     }
+    void evaluateSwitch() {
+        using T = Enums::Components_enum;
+        bool output;
+
+        switch (type) {
+        case T::And:
+            output = BitWise::read_bit<LOGIC_GATE_A_BIT>(in) &&
+                     BitWise::read_bit<LOGIC_GATE_B_BIT>(in);
+            break;
+        case T::Or:
+            output = BitWise::read_bit<LOGIC_GATE_A_BIT>(in) ||
+                     BitWise::read_bit<LOGIC_GATE_B_BIT>(in);
+            break;
+        case T::Not:
+            output = !BitWise::read_bit<LOGIC_GATE_A_BIT>(in);
+            break;
+        case T::Xor:
+            output = BitWise::read_bit<LOGIC_GATE_A_BIT>(in) !=
+                     BitWise::read_bit<LOGIC_GATE_B_BIT>(in);
+            break;
+        case T::ON_IN:
+            output = true;
+            break;
+        case T::Button:
+            output = !BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
+            break;
+        case T::In:
+        case T::Out:
+            return; // Preserve the byte.
+        default:
+            throw std::out_of_range("UNDEFINED COMPONENT");
+        }
+
+        in = BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, output);
+    }
+
     bool getOutput() {
         return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
     }
@@ -155,13 +227,24 @@ struct Circuit {
         }
     };
     Data data;
-    void stepSimulation() {
+    void stepSimulationTable() {
         for (auto &component : data.LogicComponents) {
-            component.evaluate();
+            component.evaluateTable();
             const bool output = component.getOutput();
             component.forEachOutgoingConnection([&](auto destination_id, auto input_entry) {
                 Gate &dest = data.LogicComponents[destination_id];
-                if (input_entry >= dest.numberOfEntries()) throw std::out_of_range("Invalid entry id");
+                if (input_entry >= dest.numberOfEntriesTable()) throw std::out_of_range("Invalid entry id");
+                dest.setInput(input_entry, output);
+            });
+        }
+    }
+    void stepSimulationSwitch() {
+        for (auto &component : data.LogicComponents) {
+            component.evaluateSwitch();
+            const bool output = component.getOutput();
+            component.forEachOutgoingConnection([&](auto destination_id, auto input_entry) {
+                Gate &dest = data.LogicComponents[destination_id];
+                if (input_entry >= dest.numberOfEntriesTable()) throw std::out_of_range("Invalid entry id");
                 dest.setInput(input_entry, output);
             });
         }
@@ -250,8 +333,20 @@ Circuit circuit;
 void circuitEngineThread() {
     // GUI writes the circuit here
     while (SIMULATING_MODE) {
-        circuit.stepSimulation();
+        // circuit.stepSimulation();
     }
+}
+template <typename T>
+    requires std::is_arithmetic_v<T>
+long double average(const std::vector<T> &numbers) {
+    if (numbers.empty()) {
+        throw std::invalid_argument("Cannot average an empty vector");
+    }
+
+    const long double sum =
+        std::accumulate(numbers.begin(), numbers.end(), 0.0L);
+
+    return sum / numbers.size();
 }
 int main() {
     auto andA = circuit.data.addComponent<Enums::Components_enum::And>();
@@ -271,8 +366,44 @@ int main() {
     circuit.data.connect(orA, 0, andA);
     circuit.data.connect(orA, 1, andB);
     circuit.data.connect(out, 0, orA);
-    std::jthread simulationEngine(circuitEngineThread);
-    GUI gui;
-    gui.loadCircuitComponentInScreen(circuit, andA, 0, 0);
+    auto tests = 10;
+    auto test = 0;
+    auto steps = 1000000;
+    auto step = 0;
+    std::printf("Number of steps per test -> %d\n\n", steps);
+    std::vector<double> TableAvrgtime;
+    std::vector<double> SwitchAvrgtime;
+    while (test < tests) {
+        while (step < steps) {
+            auto start = std::chrono::steady_clock::now();
+            circuit.stepSimulationTable();
+            step++;
+            auto stop = std::chrono::steady_clock::now();
+            double ms =
+                std::chrono::duration<double, std::milli>(stop - start).count();
+            TableAvrgtime.push_back(ms);
+        }
+        auto table_average = average(TableAvrgtime);
+        std::printf("table average time: %Lf ms\n", table_average);
+        step = 0;
+        while (step < steps) {
+            auto start = std::chrono::steady_clock::now();
+            circuit.stepSimulationSwitch();
+            step++;
+            auto stop = std::chrono::steady_clock::now();
+            double ms =
+                std::chrono::duration<double, std::milli>(stop - start).count();
+            SwitchAvrgtime.push_back(ms);
+        }
+        auto switch_average = average(SwitchAvrgtime);
+        std::printf("switch average time: %Lf ms\n", switch_average);
+        if (switch_average < table_average) {
+            std::printf("switch is %Lfx faster than table\n\n", table_average / switch_average);
+        } else {
+            std::printf("table is %Lfx faster than switch\n\n", switch_average / table_average);
+        }
+        test++;
+    }
+
     return 0;
 }

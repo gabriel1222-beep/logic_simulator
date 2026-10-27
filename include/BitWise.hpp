@@ -1,8 +1,11 @@
 #pragma once
+
 #include <concepts>
 #include <limits>
 #include <cstddef>
+
 namespace BitWise {
+
 template <std::size_t Bit, std::unsigned_integral T>
 constexpr T bit_mask() {
     static_assert(!std::same_as<T, bool>,
@@ -14,34 +17,32 @@ constexpr T bit_mask() {
 }
 
 template <std::size_t Bit, std::unsigned_integral T>
-constexpr bool read_bit(T byte) {
+constexpr bool read_bit(const T byte) {
     return (byte & bit_mask<Bit, T>()) != 0;
 }
 
 template <std::size_t Bit, std::unsigned_integral T>
-constexpr void turn_on(T &byte) {
-    byte = static_cast<T>(byte | bit_mask<Bit, T>());
+constexpr T turn_on(const T byte) {
+    return static_cast<T>(byte | bit_mask<Bit, T>());
 }
 
 template <std::size_t Bit, std::unsigned_integral T>
-constexpr void turn_off(T &byte) {
-    byte = static_cast<T>(byte & static_cast<T>(~bit_mask<Bit, T>()));
+constexpr T turn_off(const T byte) {
+    return static_cast<T>(byte & static_cast<T>(~bit_mask<Bit, T>()));
 }
 
 template <std::size_t Bit, std::unsigned_integral T>
-constexpr void flip_bit(T &byte) {
-    byte = static_cast<T>(byte ^ bit_mask<Bit, T>());
+constexpr T flip_bit(const T byte) {
+    return static_cast<T>(byte ^ bit_mask<Bit, T>());
 }
 
 template <std::size_t Bit, std::unsigned_integral T>
-constexpr void set_bit(T &byte, bool value) {
-    if (value)
-        turn_on<Bit>(byte);
-    else
-        turn_off<Bit>(byte);
+constexpr T set_bit(const T byte, bool value) {
+    return value ? turn_on<Bit>(byte) : turn_off<Bit>(byte);
 }
+
 template <std::size_t Pos, std::size_t Width, std::unsigned_integral T>
-constexpr T setField(T word, T value) {
+constexpr T setField(const T& word, const T& value) {
     constexpr std::size_t digits = std::numeric_limits<T>::digits;
 
     static_assert(Width > 0);
@@ -58,8 +59,9 @@ constexpr T setField(T word, T value) {
 
     return (word & ~mask) | ((value & low_mask) << Pos);
 }
+
 template <std::size_t Pos, std::size_t Width, std::unsigned_integral T>
-constexpr T getField(T word) {
+constexpr T getField(const T& word) {
     constexpr std::size_t digits = std::numeric_limits<T>::digits;
 
     static_assert(Width > 0);
@@ -74,4 +76,5 @@ constexpr T getField(T word) {
 
     return (word >> Pos) & low_mask;
 }
+
 } // namespace BitWise
