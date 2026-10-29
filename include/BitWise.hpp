@@ -7,7 +7,7 @@
 namespace BitWise {
 
 template <std::size_t Bit, std::unsigned_integral T>
-constexpr T bit_mask() {
+consteval T bit_mask() {
     static_assert(!std::same_as<T, bool>,
                   "T must be an unsigned integer type, not bool");
     static_assert(Bit < std::numeric_limits<T>::digits,

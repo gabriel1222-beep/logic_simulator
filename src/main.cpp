@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <thread>
 #include <vector>
+#define READ_BIT(value, pos) ((((value) >> (pos)) & 1u) != 0u)
 template <typename T, typename... Args>
 constexpr bool matches_any(const T &target, const Args &...items) {
     return ((target == items) || ...);
@@ -368,7 +369,7 @@ int main() {
     circuit.data.connect(out, 0, orA);
     auto tests = 10;
     auto test = 0;
-    auto steps = 1000000;
+    auto steps = 10000000;
     auto step = 0;
     std::printf("Number of steps per test -> %d\n\n", steps);
     std::vector<double> TableAvrgtime;
@@ -394,7 +395,7 @@ int main() {
             double ms =
                 std::chrono::duration<double, std::milli>(stop - start).count();
             SwitchAvrgtime.push_back(ms);
-        }
+            }
         auto switch_average = average(SwitchAvrgtime);
         std::printf("switch average time: %Lf ms\n", switch_average);
         if (switch_average < table_average) {
@@ -402,6 +403,7 @@ int main() {
         } else {
             std::printf("table is %Lfx faster than switch\n\n", switch_average / table_average);
         }
+        step = 0;
         test++;
     }
 
