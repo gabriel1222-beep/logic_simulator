@@ -11,12 +11,145 @@
 #include <cstdlib>
 #include <fmt/base.h>
 #include <fmt/format.h>
+#include <format>
 #include <iostream>
 #include <numeric>
 #include <stdexcept>
 #include <sys/types.h>
 #include <thread>
 #include <vector>
+struct Measurements {
+    double average_t;
+    std::string name;
+    std::size_t smallest_t;
+    std::size_t biggest_t;
+    std::string getAverage_t() {
+        std::string str;
+        if (average_t >= 1000000) {
+            str = std::format("{:.6f} ms", average_t / 1000000);
+        } else if (average_t >= 1000) {
+            str = std::format("{:.6f} µs", average_t / 1000);
+        } else {
+            str = std::format("{:.6f} ns", average_t);
+        }
+        return str;
+    }
+    void print() {
+        std::cout << "Benchmark: \x1b[93m" << name << "\x1b[0m\n\n";
+        if (smallest_t >= 1000000) {
+            std::cout << "Smallest time: " << smallest_t / 1000000 << " ms" << "\n";
+        } else {
+            std::cout << "Smallest time: " << smallest_t << " ns" << "\n";
+        }
+        if (biggest_t >= 1000000) {
+            std::cout << "Biggest time: " << biggest_t / 1000000 << " ms" << "\n";
+        } else {
+            std::cout << "Biggest time: " << biggest_t << " ns" << "\n";
+        }
+        if (average_t >= 1000000) {
+            std::cout << "Average time: " << average_t / 1000000 << " ms" << "\n";
+        } else {
+            std::cout << "Average time: " << average_t << " ns" << "\n";
+        }
+    }
+};
+struct Benchmarker {
+    template <class F>
+    std::size_t executionTimeMS(F &&f) {
+        const auto start = std::chrono::steady_clock::now();
+        std::forward<F>(f)();
+        const auto stop = std::chrono::steady_clock::now();
+        auto time = stop - start;
+        return static_cast<std::size_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(time).count());
+    }
+    template <class F>
+    std::size_t executionTimeNS(F &&f) {
+        const auto start = std::chrono::steady_clock::now();
+        std::forward<F>(f)();
+        const auto stop = std::chrono::steady_clock::now();
+        const auto time = stop - start;
+        return static_cast<std::size_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(time).count());
+    }
+    template <class F>
+    Measurements averageExecutionTime(std::string bench_name, std::size_t iterations, F &&f) {
+        std::vector<std::size_t> times;
+        times.reserve(iterations+1);
+        double time_sum = 0;
+        for (std::size_t i = 0; i < iterations; i++) {
+            auto time = executionTimeNS(f);
+            time_sum += time;
+            times.push_back(time);
+        }
+        Measurements measures;
+        measures.name = bench_name;
+        measures.average_t = time_sum / times.size();
+        measures.biggest_t = *std::max_element(times.begin(), times.end());
+        measures.smallest_t = *std::min_element(times.begin(), times.end());
+        return measures;
+    }
+};
+template<std::size_t reserve>
+struct Ploter {
+    std::vector<Measurements> measures = [] { std::vector<Measurements> v; v.reserve(reserve); return v; }();
+    void add(Measurements &measure) {
+        measures.push_back(measure);
+    }
+    std::size_t getLongestNameSize() {
+        auto longest = std::max_element(
+            measures.begin(), measures.end(),
+            [](auto &a, auto &b) {
+                return a.name.size() < b.name.size();
+            });
+        return longest == measures.end() ? 0 : longest->name.size();
+    }
+    std::size_t getbiggestAvrgValueStrSize() {
+        auto biggest = std::max_element(
+            measures.begin(), measures.end(),
+            [](auto &a, auto &b) {
+                return a.average_t < b.average_t;
+            });
+        return biggest == measures.end() ? 0 : std::format("{}", biggest->average_t).size();
+    }
+    std::string line(std::size_t length, std::string &c) {
+        std::string str;
+        if(length >= 100){
+            length/=2;
+        }
+        str.reserve(length * c.size());
+
+        for (size_t i = 0; i < length; i++) {
+            str += c;
+        }
+        return str;
+    }
+    template<typename T>
+    void plot(std::string name, T value){
+        std::string character = "▀";
+            std::cout
+                << name << " "
+                << "\x1b[91m" << std::format("{:.6f}", value)
+                << " \x1b[93m"
+                << std::format("{}", line(value, character))
+                << "\x1b[0m\n";
+    }
+    void showAverages() {
+
+        std::string character = "▀";
+        std::size_t longest_name_length = getLongestNameSize();
+        std::size_t longest_value_length = getbiggestAvrgValueStrSize();
+        std::size_t w = longest_name_length + longest_value_length;
+        for (auto &measure : measures) {
+            std::cout
+                << std::format("{:<{}}", measure.name, longest_name_length + 1)
+                << "\x1b[91m" << measure.getAverage_t()
+                << " \x1b[93m"
+                << std::format("{:>{}}", line(measure.average_t, character), w)
+                << "\x1b[0m\n";
+        }
+    }
+};
 #define READ_BIT(value, pos) ((((value) >> (pos)) & 1u) != 0u)
 template <typename T, typename... Args>
 constexpr bool matches_any(const T &target, const Args &...items) {
@@ -28,7 +161,7 @@ void exitError(std::string Error) {
 }
 
 namespace Enums {
-        enum Components_enum : std::size_t {
+enum Components_enum : std::size_t {
     And,
     Or,
     Not,
@@ -245,7 +378,7 @@ struct Circuit {
             const bool output = component.getOutput();
             component.forEachOutgoingConnection([&](auto destination_id, auto input_entry) {
                 Gate &dest = data.LogicComponents[destination_id];
-                if (input_entry >= dest.numberOfEntriesTable()) throw std::out_of_range("Invalid entry id");
+                if (input_entry >= dest.numberOfEntriesif()) throw std::out_of_range("Invalid entry id");
                 dest.setInput(input_entry, output);
             });
         }
@@ -367,45 +500,36 @@ int main() {
     circuit.data.connect(orA, 0, andA);
     circuit.data.connect(orA, 1, andB);
     circuit.data.connect(out, 0, orA);
-    auto tests = 10;
-    auto test = 0;
-    auto steps = 10000000;
-    auto step = 0;
+    auto steps = 100000;
     std::printf("Number of steps per test -> %d\n\n", steps);
     std::vector<double> TableAvrgtime;
+    TableAvrgtime.reserve(1000);
     std::vector<double> SwitchAvrgtime;
-    while (test < tests) {
-        while (step < steps) {
-            auto start = std::chrono::steady_clock::now();
+    SwitchAvrgtime.reserve(1000);
+    Benchmarker benchmarker;
+    std::vector<std::size_t> switch_times;
+    std::vector<std::size_t> table_times;
+    while (1) {
+        std::cout<<"\x1b[2J\x1b[H";
+        auto table_time = benchmarker.averageExecutionTime("Table version", steps, [&] {
             circuit.stepSimulationTable();
-            step++;
-            auto stop = std::chrono::steady_clock::now();
-            double ms =
-                std::chrono::duration<double, std::milli>(stop - start).count();
-            TableAvrgtime.push_back(ms);
-        }
-        auto table_average = average(TableAvrgtime);
-        std::printf("table average time: %Lf ms\n", table_average);
-        step = 0;
-        while (step < steps) {
-            auto start = std::chrono::steady_clock::now();
+        });
+        auto switch_time = benchmarker.averageExecutionTime("Switch version", steps, [&] {
             circuit.stepSimulationSwitch();
-            step++;
-            auto stop = std::chrono::steady_clock::now();
-            double ms =
-                std::chrono::duration<double, std::milli>(stop - start).count();
-            SwitchAvrgtime.push_back(ms);
-            }
-        auto switch_average = average(SwitchAvrgtime);
-        std::printf("switch average time: %Lf ms\n", switch_average);
-        if (switch_average < table_average) {
-            std::printf("switch is %Lfx faster than table\n\n", table_average / switch_average);
-        } else {
-            std::printf("table is %Lfx faster than switch\n\n", switch_average / table_average);
-        }
-        step = 0;
-        test++;
+        });
+        switch_times.push_back(switch_time.average_t);
+        table_times.push_back(table_time.average_t);
+        auto switch_avr = average(switch_times);
+        auto table_avr = average(table_times);
+        Ploter<2> ploter;
+        ploter.add(table_time);
+        ploter.add(switch_time);
+        ploter.showAverages();
+        std::cout<<"\n";
+        ploter.plot("Table average", table_avr);
+        ploter.plot("Switch average", switch_avr);
     }
+    
 
     return 0;
 }
