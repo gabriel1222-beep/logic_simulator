@@ -8,7 +8,7 @@ constexpr bool matchesAny(const T &target, const Args &...items) {
     return ((target == items) || ...);
 }
 template <typename T, typename... Args>
-bool matchesAll(const T &target, const Args &...items) {
+consteval bool matchesAll(const T &target, const Args &...items) {
     return ((target == items) && ...);
 }
 template <typename T>

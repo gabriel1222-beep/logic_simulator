@@ -149,8 +149,8 @@ struct Ploter {
     }
 };
 bool SIMULATING_MODE = false;
-Circuit circuit;
 int main() {
+    Circuit circuit;
     auto andA = circuit.data.addComponent<Enums::Components_enum::And>();
     auto andB = circuit.data.addComponent<Enums::Components_enum::And>();
     auto orA = circuit.data.addComponent<Enums::Components_enum::Or>();
@@ -175,25 +175,18 @@ int main() {
     std::vector<double> SwitchAvrgtime;
     SwitchAvrgtime.reserve(1000);
     Benchmarker benchmarker;
-    std::vector<std::size_t> switch_times;
     std::vector<std::size_t> table_times;
     while (1) {
         std::cout << "\x1b[2J\x1b[H";
         auto table_time = benchmarker.averageExecutionTime("Table version", steps, [&] {
             circuit.stepSimulationTable();
         });
-        auto switch_time = benchmarker.averageExecutionTime("Switch version", steps, [&] {
-            circuit.stepSimulationSwitch();
-        });
-        switch_times.push_back(switch_time.average_t);
         table_times.push_back(table_time.average_t);
         Ploter<2> ploter;
         ploter.add(table_time);
-        ploter.add(switch_time);
         ploter.showAverages();
         std::cout << "\n";
         ploter.plot("Table average time          ", average(table_times));
-        ploter.plot("Switch average timei        ", average(switch_times));
     }
 
     return 0;
