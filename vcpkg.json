@@ -4,7 +4,6 @@
   "dependencies": [
     "fmt",
     "sdl2",
-    "sdl2-image",
-    "magic-enum"
+    "sdl2-image"
   ]
 }
