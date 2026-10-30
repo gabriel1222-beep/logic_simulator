@@ -57,7 +57,7 @@ struct Circuit {
             const auto count = component.OutgoingConnections();
 
             for (std::size_t i = 0; i < count; ++i) {
-                data.LogicComponents[component.dest_ids[i]].setInput(component.dest_entry[i], output);
+                data.LogicComponents[component.dest_ids[i]].dest_entry.setValue(i,output);
             }
         }
     }

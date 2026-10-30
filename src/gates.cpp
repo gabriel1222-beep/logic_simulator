@@ -43,9 +43,8 @@ void Gate::setCounter(std::uint8_t value) {
 
 void Gate::connect(std::uint64_t dest_id, std::uint8_t dest_entry) {
     std::uint8_t n = OutgoingConnections();
-
     this->dest_ids[n] = dest_id;
-    this->dest_entry[n] = dest_entry;
+    this->dest_entry.setValue(n,dest_entry);
 
     n++;
     setCounter(n);

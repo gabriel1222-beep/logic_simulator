@@ -1,11 +1,11 @@
 #pragma once
 
-#include "BitWise.hpp"
 #include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
+#include "boolArray.hpp"
 
 namespace Enums {
 enum Components_enum : std::uint8_t {
@@ -27,7 +27,7 @@ enum Components_enum : std::uint8_t {
 #define LOGIC_GATE_OUTPUT_ON 0b00000100
 #define LOGIC_GATE_A_BIT 0
 #define LOGIC_GATE_B_BIT 1
-#define LOGIC_GATE_MAX_OUTGOING_CONNECTIONS 5
+#define LOGIC_GATE_MAX_OUTGOING_CONNECTIONS 14
 
 #define NUMBER_OF_COMPONENTS (static_cast<std::uint8_t>(Enums::Components_enum::undefined) - 1)
 
@@ -48,8 +48,8 @@ bool SameComponent(
     Enums::Components_enum component_typeB);
 
 struct Gate {
-    std::uint64_t dest_ids[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
-    std::uint8_t dest_entry[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS];
+    std::uint8_t dest_ids[LOGIC_GATE_MAX_OUTGOING_CONNECTIONS]{};
+    BoolArray<LOGIC_GATE_MAX_OUTGOING_CONNECTIONS,Mode::fast> dest_entry;
     std::uint8_t in = 0b00000000;
     const Enums::Components_enum type = Enums::Components_enum::undefined;
     constexpr Gate(Enums::Components_enum type)
@@ -59,30 +59,29 @@ struct Gate {
     std::size_t printSize() const;
     std::size_t getTrueSize() const;
 
-std::uint8_t OutgoingConnections() const {
-   return BitWise::getField<3, 5>(in);
-}
+    std::uint8_t OutgoingConnections() const {
+        return (in >> 3) & 0b00011111;
+
+    }
     void setCounter(std::uint8_t value);
 
     void connect(std::uint64_t dest_id, std::uint8_t dest_entry);
-private:
+
+  private:
     static bool And(std::uint8_t in) {
-        return BitWise::read_bit<LOGIC_GATE_A_BIT>(in) &&
-               BitWise::read_bit<LOGIC_GATE_B_BIT>(in);
+        return (in & 0b00000011) == 0b00000011;
     }
 
     static bool Or(std::uint8_t in) {
-        return BitWise::read_bit<LOGIC_GATE_A_BIT>(in) ||
-               BitWise::read_bit<LOGIC_GATE_B_BIT>(in);
+        return (in & 0b00000011) != 0;
     }
 
     static bool Not(std::uint8_t in) {
-        return !BitWise::read_bit<LOGIC_GATE_A_BIT>(in);
+        return (in & 0b00000001) == 0;
     }
 
     static bool Xor(std::uint8_t in) {
-        return BitWise::read_bit<LOGIC_GATE_A_BIT>(in) !=
-               BitWise::read_bit<LOGIC_GATE_B_BIT>(in);
+        return ((in & 0b00000001) ^ ((in & 0b00000010) >> 1)) != 0;
     }
 
     static bool OnIn(std::uint8_t) {
@@ -90,52 +89,45 @@ private:
     }
 
     static bool Button(std::uint8_t in) {
-        return !BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
+        return (in & 0b00000100) == 0;
     }
 
     static bool In(std::uint8_t in) {
-        return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
+        return (in & 0b00000100) != 0;
     }
 
     static bool Out(std::uint8_t in) {
-        return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
+        return (in & 0b00000100) != 0;
     }
 
     static bool Undefined(std::uint8_t) {
         throw std::out_of_range("UNDEFINED COMPONENT");
     }
 
-    static constexpr std::array<bool (*)(std::uint8_t), 9> OperationTable = {
-        And, Or, Not, Xor, OnIn, Button, In, Out, Undefined};
 
   public:
-    void evaluateTable() {
+    static constexpr std::array<bool (*)(std::uint8_t), 9> OperationTable = {
+        And, Or, Not, Xor, OnIn, Button, In, Out, Undefined};
+    inline void evaluateTable() {
         if (type == Enums::ON_IN) {
             in = 0b00000100;
             return;
         }
-        in = BitWise::set_bit<LOGIC_GATE_OUTPUT_BIT>(in, OperationTable[type](in));
+        in = static_cast<std::uint8_t>(
+            (in & ~0b00000100u) |
+            (static_cast<std::uint8_t>(OperationTable[type](in)) << 2));
     }
-    std::uint8_t numberOfEntriesTable() const {
+   inline  std::uint8_t numberOfEntriesTable() const {
         if (type == Enums::ON_IN) {
             return 0;
         }
         return EntryCountTable[static_cast<std::size_t>(type)];
     }
 
-    bool getOutput() {
-        return BitWise::read_bit<LOGIC_GATE_OUTPUT_BIT>(in);
+    inline bool getOutput() {
+        return (in & 0b00000100) != 0;
     }
 
-    template <class F>
-        requires std::invocable<F &, std::uint64_t, std::uint8_t>
-    constexpr void forEachOutgoingConnection(const F &&f) const {
-        const auto count = OutgoingConnections();
-
-        for (std::size_t i = 0; i < count; ++i) {
-            f(dest_ids[i], dest_entry[i]);
-        }
-    }
 
     constexpr void setInput(std::uint8_t entry, bool value) {
         this->in = static_cast<std::uint8_t>(

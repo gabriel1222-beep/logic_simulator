@@ -151,23 +151,23 @@ struct Ploter {
 bool SIMULATING_MODE = false;
 int main() {
     Circuit circuit;
-    auto andA = circuit.data.addComponent<Enums::Components_enum::And>();
-    auto andB = circuit.data.addComponent<Enums::Components_enum::And>();
-    auto orA = circuit.data.addComponent<Enums::Components_enum::Or>();
     auto notA = circuit.data.addComponent<Enums::Components_enum::Not>();
-    auto notB = circuit.data.addComponent<Enums::Components_enum::Not>();
-    auto inA = circuit.data.addComponent<Enums::Components_enum::ON_IN>();
     auto inB = circuit.data.addComponent<Enums::Components_enum::ON_IN>();
-    auto out = circuit.data.addComponent<Enums::Components_enum::Out>();
-    circuit.data.connect(notA, 0, inA);
-    circuit.data.connect(andA, 0, notA);
+    auto andA = circuit.data.addComponent<Enums::Components_enum::And>();
     circuit.data.connect(andA, 1, inB); // AndA = notA and B
-    circuit.data.connect(notB, 0, inB);
-    circuit.data.connect(andB, 0, notB);
-    circuit.data.connect(andB, 1, inA); // AndB = notB and A
+    circuit.data.connect(andA, 0, notA);
+    auto andB = circuit.data.addComponent<Enums::Components_enum::And>();
+    auto out = circuit.data.addComponent<Enums::Components_enum::Out>();
+    auto orA = circuit.data.addComponent<Enums::Components_enum::Or>();
+    circuit.data.connect(out, 0, orA);
     circuit.data.connect(orA, 0, andA);
     circuit.data.connect(orA, 1, andB);
-    circuit.data.connect(out, 0, orA);
+    auto inA = circuit.data.addComponent<Enums::Components_enum::ON_IN>();
+    circuit.data.connect(andB, 1, inA); // AndB = notB and A
+    circuit.data.connect(notA, 0, inA);
+    auto notB = circuit.data.addComponent<Enums::Components_enum::Not>();
+    circuit.data.connect(andB, 0, notB);
+    circuit.data.connect(notB, 0, inB);
     auto steps = 100000;
     std::printf("Number of steps per test -> %d\n\n", steps);
     std::vector<double> TableAvrgtime;
