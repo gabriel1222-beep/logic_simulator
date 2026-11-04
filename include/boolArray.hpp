@@ -59,6 +59,37 @@ struct BoolArray {
                 word &= ~mask;
         }
     }
+    template<unsigned index>
+    void setValue(bool value = true) {
+        if (index >= N) return;
+
+        if constexpr (mode == Mode::compact) {
+            auto &byte = storage[index / 8];
+            constexpr auto mask =
+                static_cast<std::uint8_t>(1u << (index % 8));
+
+            if (value)
+                byte |= mask;
+            else
+                byte &= static_cast<std::uint8_t>(~mask);
+        } else if constexpr (N <= 64) {
+            constexpr auto mask =
+                static_cast<storage_type>(storage_type{1} << index);
+
+            if (value)
+                storage = static_cast<storage_type>(storage | mask);
+            else
+                storage = static_cast<storage_type>(storage & ~mask);
+        } else {
+            auto &word = storage[index / 64];
+            constexpr auto mask = std::uint64_t{1} << (index % 64);
+
+            if (value)
+                word |= mask;
+            else
+                word &= ~mask;
+        }
+    }
 
     bool getValue(std::size_t index) const {
         if (index >= N) return false;
@@ -71,8 +102,7 @@ struct BoolArray {
             return (storage[index / 64] &
                     (std::uint64_t{1} << (index % 64))) != 0;
         }
-    }
-    consteval std::size_t getSize() {
+    }d    consteval std::size_t getSize() {
         return N;
     }
     consteval std::size_t getSpaceUsage() {
