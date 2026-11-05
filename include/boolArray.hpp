@@ -102,7 +102,8 @@ struct BoolArray {
             return (storage[index / 64] &
                     (std::uint64_t{1} << (index % 64))) != 0;
         }
-    }d    consteval std::size_t getSize() {
+    }
+    consteval std::size_t getSize() {
         return N;
     }
     consteval std::size_t getSpaceUsage() {
