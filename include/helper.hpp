@@ -23,4 +23,4 @@ long double average(const std::vector<T> &numbers) {
 
     return sum / numbers.size();
 }
-void exitError(std::string Error);
+void exitError(const char* Error);

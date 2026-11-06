@@ -1,0 +1,3 @@
+Make an working GUI
+
+Reestructure the entire src based on the GUI logic
