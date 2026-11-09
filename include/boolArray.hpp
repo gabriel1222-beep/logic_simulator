@@ -28,6 +28,43 @@ struct BoolArray {
     using storage_type = BoolStorage<N, mode>;
 
     storage_type storage{};
+    template <typename... U>
+    constexpr BoolArray(U... values) {
+        static_assert(sizeof...(U) <= N, "Too many initial values");
+
+        constexpr std::size_t count = sizeof...(U);
+        const std::array<bool, count> initial{static_cast<bool>(values)...};
+
+        for (std::size_t i = 0; i < count; ++i) {
+
+            if constexpr (mode == Mode::compact) {
+                auto &byte = storage[i / 8];
+                const auto mask =
+                    static_cast<std::uint8_t>(1u << (i % 8));
+
+                if (initial[i])
+                    byte |= mask;
+                else
+                    byte &= static_cast<std::uint8_t>(~mask);
+            } else if constexpr (N <= 64) {
+                const auto mask =
+                    static_cast<storage_type>(storage_type{1} << i);
+
+                if (initial[i])
+                    storage = static_cast<storage_type>(storage | mask);
+                else
+                    storage = static_cast<storage_type>(storage & ~mask);
+            } else {
+                auto &word = storage[i / 64];
+                const auto mask = std::uint64_t{1} << (i % 64);
+
+                if (initial[i])
+                    word |= mask;
+                else
+                    word &= ~mask;
+            }
+        }
+    }
 
     void setValue(std::size_t index, bool value = true) {
         if (index >= N) return;
@@ -59,7 +96,7 @@ struct BoolArray {
                 word &= ~mask;
         }
     }
-    template<unsigned index>
+    template <unsigned index>
     void setValue(bool value = true) {
         if (index >= N) return;
 
@@ -91,7 +128,7 @@ struct BoolArray {
         }
     }
 
-    bool getValue(std::size_t index) const {
+    bool at(std::size_t index) const {
         if (index >= N) return false;
 
         if constexpr (mode == Mode::compact) {
@@ -101,6 +138,16 @@ struct BoolArray {
         } else {
             return (storage[index / 64] &
                     (std::uint64_t{1} << (index % 64))) != 0;
+        }
+    }
+    bool operator[](std::size_t i) const {
+        if constexpr (mode == Mode::compact) {
+            return (storage[i / 8] & (1u << (i % 8))) != 0;
+        } else if constexpr (N <= 64) {
+            return (storage & (storage_type{1} << i)) != 0;
+        } else {
+            return (storage[i / 64] &
+                    (std::uint64_t{1} << (i % 64))) != 0;
         }
     }
     consteval std::size_t getSize() {

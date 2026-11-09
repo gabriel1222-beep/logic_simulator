@@ -22,6 +22,7 @@ struct SzArray {
         : buffer{std::forward<U>(values)...},
           size(sizeof...(U)) {
     }
+    
     void push_back(Tp data) {
         if (size >= Nm) return;
         buffer[size] = data;
@@ -43,6 +44,7 @@ struct SzArray {
     const Tp &operator[](std::size_t i) const { return buffer[i]; }
 };
 int main() {
-    SzArray<int, 3> arr = {0,1,2};
+    using row = SzArray<int, 3>;
+    SzArray<row, 3> arr{row{0,1,2},row{0,1,2},row{0,1,2}};
     return 0;
 }
