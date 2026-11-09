@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
-#include "boolArray.hpp"
+#include <boolArray.hpp>
 
 namespace Enums {
 enum Components_enum : std::uint8_t {

@@ -1,7 +1,7 @@
 
 #include <fmt/format.h>
 
-#include "BitWise.hpp"
+#include <bitWise/bitWise.hpp>
 #include "gates.hpp"
 #include <iostream>
 

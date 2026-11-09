@@ -1,6 +1,6 @@
 #include "circuit.hpp"
 #include "gates.hpp"
-#include "helper.hpp"
+#include <helper.hpp>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL_error.h>
@@ -9,15 +9,10 @@
 #include <SDL_video.h>
 #include <array>
 #include <chrono>
-#include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <functional>
-#include <print>
-#include <ratio>
-#include <string>
 #include <sys/types.h>
 #include <thread>
 enum Default_color {
