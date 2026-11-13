@@ -91,7 +91,6 @@ struct GUI {
   private:
     SDL_Window *window;
     SDL_Renderer *renderer;
-    std::array<SDL_Texture *, 4> textures;
     int loadTexture(const char *path, SDL_Texture **texture) {
         *texture = IMG_LoadTexture(renderer, path);
         if (!*texture) {
@@ -103,6 +102,17 @@ struct GUI {
     float mod(float value) {
         return (value > 0) ? value : -value;
     }
+    public:
+    enum Textures_Ids : uint8_t{
+        AND_GATE_TEXTURE,
+        OR_GATE_TEXTURE,
+        NOT_GATE_TEXTURE,
+        XOR_GATE_TEXTURE,
+        NUMBER_OF_TEXTURES
+                    
+    };
+    private:
+    static std::array<SDL_Texture *, NUMBER_OF_TEXTURES> textures;
 
   public:
     GUI() {
@@ -126,24 +136,24 @@ struct GUI {
         if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
             exitError(IMG_GetError());
         }
-        if (loadTexture("AND-Photoroom.png", &textures[0]) != 0) {
+        if (loadTexture("AND-Photoroom.png", &textures[AND_GATE_TEXTURE]) != 0) {
             exitError(IMG_GetError());
         }
-        if (loadTexture("NOT-Photoroom.png", &textures[1]) != 0) {
+        if (loadTexture("NOT-Photoroom.png", &textures[NOT_GATE_TEXTURE]) != 0) {
             exitError(IMG_GetError());
         }
-        if (loadTexture("OR-Photoroom.png", &textures[2]) != 0) {
+        if (loadTexture("OR-Photoroom.png", &textures[OR_GATE_TEXTURE]) != 0) {
             exitError(IMG_GetError());
         }
-        if (loadTexture("XOR-Photoroom.png", &textures[3]) != 0) {
+        if (loadTexture("XOR-Photoroom.png", &textures[XOR_GATE_TEXTURE]) != 0) {
             exitError(IMG_GetError());
         }
     }
-    void drawImg(int i,int x, int y) {
+    void drawImg(GUI::Textures_Ids id,int x, int y) {
         int imageW, imageH;
-        SDL_QueryTexture(textures[i], nullptr, nullptr, &imageW, &imageH);
+        SDL_QueryTexture(textures[id], nullptr, nullptr, &imageW, &imageH);
         SDL_Rect destination{x, y, imageW, imageH};
-        SDL_RenderCopy(renderer, textures[i], nullptr, &destination);
+        SDL_RenderCopy(renderer, textures[id], nullptr, &destination);
     }
     void setDrawColor(Default_color color) {
         SDL_SetRenderDrawColor(renderer, color_table[color][0], color_table[color][1], color_table[color][2], color_table[color][3]);
@@ -250,7 +260,7 @@ int main() {
         gui.setDrawColor(Default_color::White);
         gui.clearWindow();
         gui.setDrawColor(Default_color::White);
-        gui.drawImg(0, 300, 300);
+        gui.drawImg(GUI::AND_GATE_TEXTURE, 300, 300);
         gui.preset();
     });
 
